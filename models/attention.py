@@ -37,14 +37,17 @@ class MultiHeadAttention(nn.Module):
 
     def forward(self, k_hidden_inputs: torch.Tensor, q_hidden_inputs: torch.Tensor, v_hidden_inputs: torch.Tensor):
 
-        attention_outputs = torch.cat([ attention(k_hidden_inputs, q_hidden_inputs, v_hidden_inputs) for attention in self.attention_heads ], dim=1)
+        attention_outputs = torch.cat([attention(
+            k_hidden_inputs, q_hidden_inputs, v_hidden_inputs) for attention in self.attention_heads], dim=1)
 
         return self.heads_weights(attention_outputs)
+
 
 class SimpleMultiHeadAttention(MultiHeadAttention):
     '''
     The same as MultiHeadAttention but all the query key and value inputs are the same
     '''
+
     def __init__(self, hidden_dim: int, key_query_value_dim: int = 64, num_heads=8):
         super(SimpleMultiHeadAttention, self).__init__(hidden_dim, key_and_query_dim=key_query_value_dim, value_dim=key_query_value_dim, num_heads=num_heads=)
         return
@@ -62,4 +65,3 @@ class AddAndNorm(nn.Module):
 
     def forward(self, inputs):
         return self.norm(inputs + self.sublayer(inputs))
-
