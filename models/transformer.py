@@ -79,7 +79,7 @@ class Transformer(nn.Module):
 
 class TransformerGenerator(nn.Module):
     def __init__(self, hidden_dim, trg_vocab_size):
-        super(Transformer, self).__init__()
+        super(TransformerGenerator, self).__init__()
 
         self.out_linear = nn.Sequential(
             nn.Linear(hidden_dim, trg_vocab_size),
