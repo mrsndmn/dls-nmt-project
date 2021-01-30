@@ -1,0 +1,70 @@
+import pytest
+
+from models.attention import Attention, MultiHeadAttention, SimpleMultiHeadAttention, AddAndNorm
+
+import torch
+
+def test_attention_forward():
+    with torch.no_grad():
+        kq_dim = 2
+        v_dim = 2
+        hidden_dim = 16
+        att = Attention(hidden_dim, key_and_query_dim=kq_dim, value_dim=v_dim)
+
+        batch_size = 4
+        seq_len = 7
+        attention_input = torch.rand((batch_size, seq_len, hidden_dim))
+
+        attention_output = att.forward(k_hidden_inputs=attention_input, q_hidden_inputs=attention_input, v_hidden_inputs=attention_input, mask=None)
+        assert attention_output.size() == torch.Size((batch_size, seq_len, v_dim))
+        assert attention_output.sum().item() != 0
+
+        mask = torch.ones((batch_size, seq_len, seq_len))
+        mask[:, :, -1] = 0
+
+        attention_output = att.forward(k_hidden_inputs=attention_input, q_hidden_inputs=attention_input, v_hidden_inputs=attention_input, mask=mask, save_attention=True)
+        assert attention_output.size() == torch.Size((batch_size, seq_len, v_dim))
+        assert att.attention[:, :, -1].sum().item() == 0
+
+
+def test_multihead_attention_invalid_args():
+    with pytest.raises(ValueError):
+        MultiHeadAttention(16, key_and_query_dim=4, value_dim=4, num_heads=5)
+
+    with pytest.raises(ValueError):
+        SimpleMultiHeadAttention(16, key_query_value_dim=4, num_heads=5)
+
+def test_multihead_attention():
+    with torch.no_grad():
+        kq_dim = 4
+        v_dim = 8
+        num_heads = 16
+        hidden_dim = 64
+
+        batch_size = 3
+        seq_len = 7
+        attention_input = torch.rand((batch_size, seq_len, hidden_dim))
+
+        mha = MultiHeadAttention(hidden_dim, key_and_query_dim=kq_dim, value_dim=v_dim, num_heads=num_heads)
+        mha_ouptut = mha.forward(k_hidden_inputs=attention_input, q_hidden_inputs=attention_input, v_hidden_inputs=attention_input, mask=None)
+        assert mha_ouptut.size() == attention_input.size()
+
+def test_simple_multi_head_attention():
+    with torch.no_grad():
+        kqv_dim = 4
+        num_heads = 16
+        hidden_dim = 64
+
+        batch_size = 3
+        seq_len = 7
+        attention_input = torch.rand((batch_size, seq_len, hidden_dim))
+
+        smha = SimpleMultiHeadAttention(hidden_dim, key_query_value_dim=kqv_dim, num_heads=num_heads)
+        smha_ouptut = smha.forward(attention_input, mask=None)
+        assert smha_ouptut.size() == attention_input.size()
+
+        mask = torch.ones((batch_size, seq_len, seq_len))
+        mask[:, :, -1] = 0
+
+        smha_ouptut = smha.forward(attention_input, mask=mask)
+        assert smha_ouptut.size() == attention_input.size()

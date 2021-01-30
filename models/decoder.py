@@ -28,6 +28,7 @@ class TransformerDecoderBlock(nn.Module):
         masked_multihead_attention = MultiHeadAttention(
             hidden_dim, key_query_value_dim=key_query_value_dim, value_dim=key_query_value_dim, num_heads=num_attention_heads)
 
+        # todo move the same block in encode to separate class
         feed_forward = nn.Sequential(
             nn.Linear(hidden_dim, feed_forward_hidden_dim),
             nn.ReLU(),
