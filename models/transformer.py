@@ -29,42 +29,49 @@ class PositionalEncoding(nn.Module):
 
 
 class Transformer(nn.Module):
-    def __init__(self, input_num_embeddings: int, output_num_embeddings: int, hidden_dim: int, num_blocks: int = 6):
+    def __init__(self, src_vocab_size: int, trg_vocab_size: int, hidden_dim: int, num_blocks: int = 6, key_query_value_dim=64, num_heads: int = None):
+        super(Transformer, self).__init__()
 
-        self.input_embeddings = nn.Sequential([
-            nn.Embedding(input_num_embeddings, hidden_dim),
+        if num_heads is None:
+            num_heads = hidden_dim // key_query_value_dim
+
+        if num_heads <= 0:
+            raise ValueError('num_heads must be positive')
+
+        self.input_embeddings = nn.Sequential(
+            nn.Embedding(src_vocab_size, hidden_dim),
             PositionalEncoding(hidden_dim),
-        ])
-        self.target_embeddings = nn.Sequential([
-            nn.Embedding(output_num_embeddings, hidden_dim),
+        )
+        self.target_embeddings = nn.Sequential(
+            nn.Embedding(trg_vocab_size, hidden_dim),
             PositionalEncoding(hidden_dim),
-        ])
+        )
 
         self.num_blocks = num_blocks
 
         encoder_blocks = [TransformerEncoderBlock(
-            hidden_dim) for _ in range(num_blocks)]
+            hidden_dim, key_query_value_dim=key_query_value_dim, num_heads=num_heads) for _ in range(num_blocks)]
         decoder_blocks = [TransformerDecoderBlock(
-            hidden_dim) for _ in range(num_blocks)]
+            hidden_dim, key_query_value_dim=key_query_value_dim, num_heads=num_heads) for _ in range(num_blocks)]
 
         self.encoder_blocks = EncoderBlocksSequential(encoder_blocks)
         self.decoder_blocks = DecoderBlocksSequential(decoder_blocks)
 
         for p in self.parameters():
             if p.dim() > 1:
-                nn.init.xavier_uniform(p)
+                nn.init.xavier_uniform_(p)
 
-    def forward(self, inputs_tokens, target_tokens, src_mask=None, trg_mask=None):
+    def forward(self, src_tokens, trg_tokens, src_mask=None, trg_mask=None):
         # todo можно обучать так, чтобы один выход энкодера соответствовал
         # нескольким прогонам в декодере, на каждый токен
         # так данные будут более эффективно исползованы и уменьшится кол-во вызовов энкодера
 
-        input_embeddings = self.input_embeddings(inputs_tokens)
-        target_embeddings = self.target_embeddings(target_tokens)
+        src_embeddings = self.input_embeddings(src_tokens)
+        trg_embeddings = self.target_embeddings(trg_tokens)
 
         encoder_outputs = self.encoder_blocks.forward(
-            input_embeddings, src_mask=src_mask)
+            src_embeddings, src_mask=src_mask)
         decoder_output = self.decoder_blocks.forward(
-            target_embeddings, encoder_outputs, src_mask=src_mask, trg_mask=trg_mask)
+            trg_embeddings, encoder_outputs, src_mask=src_mask, trg_mask=trg_mask)
 
         return decoder_output

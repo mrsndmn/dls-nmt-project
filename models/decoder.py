@@ -22,11 +22,11 @@ class TransformerDecoderBlock(nn.Module):
     param: hidden_dim - embedding hidden dim
     '''
 
-    def __init__(self, hidden_dim: int, key_query_value_dim: int = 64, num_attention_heads=8, feed_forward_hidden_dim: int = 2048):
+    def __init__(self, hidden_dim: int, key_query_value_dim: int = 64, num_heads=8, feed_forward_hidden_dim: int = 2048):
         super(TransformerDecoderBlock, self).__init__()
 
         masked_multihead_attention = SimpleMultiHeadAttention(
-            hidden_dim, key_query_value_dim=key_query_value_dim, num_heads=num_attention_heads)
+            hidden_dim, key_query_value_dim=key_query_value_dim, num_heads=num_heads)
 
         # todo move the same block in encode to separate class
         feed_forward = nn.Sequential(
@@ -38,7 +38,7 @@ class TransformerDecoderBlock(nn.Module):
         self.masked_multihead_attention_add_norm = AddAndNorm(
             hidden_dim, masked_multihead_attention)
 
-        self.encoder_decoder_block = TransformerEncoderDecoderConnectionBlock(hidden_dim, key_query_value_dim=key_query_value_dim, num_attention_heads=num_attention_heads)
+        self.encoder_decoder_block = TransformerEncoderDecoderConnectionBlock(hidden_dim, key_query_value_dim=key_query_value_dim, num_attention_heads=num_heads)
         self.encoder_decoder_norm = nn.LayerNorm(hidden_dim)
 
         self.feed_forward_add_norm = AddAndNorm(hidden_dim, feed_forward)
@@ -65,6 +65,6 @@ class DecoderBlocksSequential(nn.Module):
 
     def forward(self, target_embeddings, encoder_outputs, src_mask=None, trg_mask=None):
         decoder_output = target_embeddings
-        for decoder_block in range(self.decoder_blocks):
+        for decoder_block in self.decoder_blocks:
             decoder_output = decoder_block(decoder_output, encoder_outputs, src_mask=src_mask, trg_mask=trg_mask)
         return decoder_output

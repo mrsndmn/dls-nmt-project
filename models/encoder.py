@@ -10,7 +10,7 @@ class TransformerEncoderBlock(nn.Module):
     param: hidden_dim - embedding hidden dim
     '''
 
-    def __init__(self, hidden_dim: int, key_query_value_dim: int = 64, num_attention_heads=8, feed_forward_hidden_dim: int = 2048, num_heads=8):
+    def __init__(self, hidden_dim: int, key_query_value_dim: int = 64, feed_forward_hidden_dim: int = 2048, num_heads=8):
         super(TransformerEncoderBlock, self).__init__()
 
         multihead_attention = SimpleMultiHeadAttention(
@@ -40,7 +40,7 @@ class EncoderBlocksSequential(nn.Module):
 
     def forward(self, inputs, src_mask=None, trg_mask=None):
         encoder_output = inputs
-        for encoder_block in range(self.encoder_blocks):
+        for encoder_block in self.encoder_blocks:
             encoder_output = encoder_block(encoder_output, src_mask=src_mask)
 
         return encoder_output

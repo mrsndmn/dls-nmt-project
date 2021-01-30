@@ -45,7 +45,7 @@ class MultiHeadAttention(nn.Module):
         super(MultiHeadAttention, self).__init__()
 
         if hidden_dim // num_heads != key_and_query_dim:
-            raise ValueError("hidden_dim must be equal to num_heads * key_and_query_dim")
+            raise ValueError(f"hidden_dim must be equal to num_heads * key_and_query_dim. Got: hidden_dim={hidden_dim} // num_heads={num_heads} != key_and_query_dim={key_and_query_dim}")
 
         attentions = [Attention(hidden_dim, key_and_query_dim=key_and_query_dim, value_dim=value_dim)
                       for _ in range(num_heads)]
