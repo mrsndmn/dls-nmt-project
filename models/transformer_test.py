@@ -22,5 +22,4 @@ def test_transformer_forward():
         trg_tokens = torch.randint(0, trg_vocab_size, (batch_size, seq_len))
 
         trnsf_output = tfm.forward(src_tokens, trg_tokens)
-        print(trnsf_output.shape)
         assert trnsf_output.shape == torch.Size((batch_size, seq_len, hid_dim))

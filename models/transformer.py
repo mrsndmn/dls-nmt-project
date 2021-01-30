@@ -75,3 +75,17 @@ class Transformer(nn.Module):
             trg_embeddings, encoder_outputs, src_mask=src_mask, trg_mask=trg_mask)
 
         return decoder_output
+
+
+class TransformerGenerator(nn.Module):
+    def __init__(self, hidden_dim, trg_vocab_size):
+        super(Transformer, self).__init__()
+
+        self.out_linear = nn.Sequential(
+            nn.Linear(hidden_dim, trg_vocab_size),
+            nn.LogSoftmax(dim=-1),
+        )
+
+    def forward(self, transformer_output):
+        last_token = transformer_output[:, -1, :] # batch_size, hidden_dim
+        return self.out_linear(last_token)

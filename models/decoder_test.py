@@ -8,7 +8,7 @@ def test_decoder_block():
     with torch.no_grad():
         hid_dim = 64
         kq_dim= 4
-        decoder_block = TransformerDecoderBlock(hid_dim, key_query_value_dim=kq_dim, num_attention_heads=16, feed_forward_hidden_dim=128)
+        decoder_block = TransformerDecoderBlock(hid_dim, key_query_value_dim=kq_dim, num_heads=16, feed_forward_hidden_dim=128)
 
         batch_size = 3
         seq_len = 7
