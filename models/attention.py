@@ -12,8 +12,9 @@ class Attention(nn.Module):
         self.kq_dim_root = torch.sqrt(key_and_query_dim)
 
         self.softmax = nn.Softmax()
+        self.neg_inf = -1e-9
 
-    def forward(self, k_hidden_inputs: torch.Tensor, q_hidden_inputs: torch.Tensor, v_hidden_inputs: torch.Tensor):
+    def forward(self, k_hidden_inputs: torch.Tensor, q_hidden_inputs: torch.Tensor, v_hidden_inputs: torch.Tensor, mask=None):
 
         keys: torch.Tensor = self.key_weights(k_hidden_inputs)
         queries: torch.Tensor = self.query_weights(q_hidden_inputs)
@@ -21,6 +22,8 @@ class Attention(nn.Module):
 
         keys_transposed = keys.permute(0, 2, 1)
         scaled_kv = torch.mm(queries, keys_transposed) / self.kq_dim_root
+        if mask is not None:
+            scaled_kv[mask == 0] = self.neg_inf
 
         return torch.mm(self.softmax(scaled_kv), values)
 
@@ -35,10 +38,10 @@ class MultiHeadAttention(nn.Module):
 
         self.heads_weights = nn.Linear(num_heads * value_dim, hidden_dim)
 
-    def forward(self, k_hidden_inputs: torch.Tensor, q_hidden_inputs: torch.Tensor, v_hidden_inputs: torch.Tensor):
+    def forward(self, k_hidden_inputs: torch.Tensor, q_hidden_inputs: torch.Tensor, v_hidden_inputs: torch.Tensor, mask=None):
 
         attention_outputs = torch.cat([attention(
-            k_hidden_inputs, q_hidden_inputs, v_hidden_inputs) for attention in self.attention_heads], dim=1)
+            k_hidden_inputs, q_hidden_inputs, v_hidden_inputs, mask=mask) for attention in self.attention_heads], dim=1)
 
         return self.heads_weights(attention_outputs)
 
@@ -52,8 +55,8 @@ class SimpleMultiHeadAttention(MultiHeadAttention):
         super(SimpleMultiHeadAttention, self).__init__(hidden_dim, key_and_query_dim=key_query_value_dim, value_dim=key_query_value_dim, num_heads=num_heads=)
         return
 
-    def forward(self, hidden_inputs):
-        return super(SimpleMultiHeadAttention, self).forward(k_hidden_inputs=hidden_inputs, q_hidden_inputs=hidden_inputs, v_hidden_inputs=hidden_inputs)
+    def forward(self, hidden_inputs, mask=None):
+        return super(SimpleMultiHeadAttention, self).forward(k_hidden_inputs=hidden_inputs, q_hidden_inputs=hidden_inputs, v_hidden_inputs=hidden_inputs, mask=mask)
 
 
 class AddAndNorm(nn.Module):
@@ -63,5 +66,5 @@ class AddAndNorm(nn.Module):
         self.sublayer = sublayer
         return
 
-    def forward(self, inputs):
-        return self.norm(inputs + self.sublayer(inputs))
+    def forward(self, inputs, **kwargs):
+        return self.norm(inputs + self.sublayer(inputs, **kwargs))
