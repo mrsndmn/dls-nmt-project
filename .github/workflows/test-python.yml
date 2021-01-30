@@ -5,5 +5,6 @@ steps:
     python-version: '3.x' # Version range or exact version of a Python version to use, using SemVer's version range syntax
     architecture: 'x64'
 - run: |
-  pip install pytest pytorch-lightning torch --find-links https://download.pytorch.org/whl/cpu/torch_stable.html
-  PYTHONPATH=. pytest ./models/
+    pip install pytest pytorch-lightning torch --find-links https://download.pytorch.org/whl/cpu/torch_stable.html
+    PYTHONPATH=. pytest ./models/
+|
