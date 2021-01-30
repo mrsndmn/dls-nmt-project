@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from models.attention import AddAndNorm, MultiHeadAttention
+from models.attention import AddAndNorm, MultiHeadAttention, SimpleMultiHeadAttention
 
 from typing import List
 
@@ -25,8 +25,8 @@ class TransformerDecoderBlock(nn.Module):
     def __init__(self, hidden_dim: int, key_query_value_dim: int = 64, num_attention_heads=8, feed_forward_hidden_dim: int = 2048):
         super(TransformerDecoderBlock, self).__init__()
 
-        masked_multihead_attention = MultiHeadAttention(
-            hidden_dim, key_query_value_dim=key_query_value_dim, value_dim=key_query_value_dim, num_heads=num_attention_heads)
+        masked_multihead_attention = SimpleMultiHeadAttention(
+            hidden_dim, key_query_value_dim=key_query_value_dim, num_heads=num_attention_heads)
 
         # todo move the same block in encode to separate class
         feed_forward = nn.Sequential(

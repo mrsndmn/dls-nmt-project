@@ -50,6 +50,10 @@ class Transformer(nn.Module):
         self.encoder_blocks = EncoderBlocksSequential(encoder_blocks)
         self.decoder_blocks = DecoderBlocksSequential(decoder_blocks)
 
+        for p in self.parameters():
+            if p.dim() > 1:
+                nn.init.xavier_uniform(p)
+
     def forward(self, inputs_tokens, target_tokens, src_mask=None, trg_mask=None):
         # todo можно обучать так, чтобы один выход энкодера соответствовал
         # нескольким прогонам в декодере, на каждый токен
