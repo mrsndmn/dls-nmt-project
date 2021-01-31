@@ -61,7 +61,9 @@ class TransformerLightningModule(pl.LightningModule):
             assert seq_len > 1
             visible_length = random.randint(1, seq_len-1)
             trg_mask[i, visible_length:] = False
+            target_token_positions.append(visible_length)
 
+        assert len(target_token_positions) == trg_tokens.size(0)
         target_token_idxs: torch.Tensor = trg_tokens[torch.arange(trg_tokens.size(0)), target_token_positions]
 
         transformer_output = self.transformer.forward(src_tokens, trg_tokens, src_mask=src_mask, trg_mask=trg_mask)
@@ -152,11 +154,13 @@ def cli_main(args=None):
 
     # todo support other datamodules
 
+    dm_class = WMTDataModule
     parser = TransformerLightningModule.add_model_specific_args(parser)
+    parser = dm_class.add_argparse_args(parser)
     parser = pl.Trainer.add_argparse_args(parser)
     args = parser.parse_args(args)
 
-    dm = WMTDataModule()
+    dm = dm_class.from_argparse_args(args)
     dm.setup()
 
     if args.max_steps == -1:
