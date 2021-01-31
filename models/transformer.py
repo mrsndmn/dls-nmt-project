@@ -108,11 +108,11 @@ class LabelSmoothing(nn.Module):
     def forward(self, trg_tokens_probas, target_token_idxs):
         assert trg_tokens_probas.size(1) == self.trg_vocab_size
         true_dist = trg_tokens_probas.data.clone()
-        true_dist.fill_(self.smoothing / (self.size - 2))
+        true_dist.fill_(self.smoothing / (self.trg_vocab_size - 2))
         true_dist.scatter_(1, target_token_idxs.data.unsqueeze(1), self.confidence)
         true_dist[:, self.padding_token_idx] = 0
         mask = torch.nonzero(target_token_idxs.data == self.padding_token_idx)
         if mask.dim() > 0:
             true_dist.index_fill_(0, mask.squeeze(), 0.0)
         self.true_dist = true_dist
-        return self.criterion(trg_tokens_probas, torch.Variable(true_dist, requires_grad=False))
+        return self.criterion(trg_tokens_probas, torch.autograd.Variable(true_dist, requires_grad=False))

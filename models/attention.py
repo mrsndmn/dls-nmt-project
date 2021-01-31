@@ -30,7 +30,7 @@ class Attention(nn.Module):
         keys_transposed = keys.permute(0, 2, 1) # bs, k_dim, seq_len
         scaled_kv = torch.matmul(queries, keys_transposed) / self.kq_dim_root # # bs, seq_len, seq_len
         if mask is not None:
-            scaled_kv[mask == 0] = self.neg_inf
+            scaled_kv[mask == False] = self.neg_inf
 
         scaled_kv = self.softmax(scaled_kv)
 

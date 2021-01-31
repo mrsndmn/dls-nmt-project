@@ -53,7 +53,7 @@ class WMTDataModule(pl.LightningDataModule):
     file_name = 'news-commentary-v14.en-ru.tsv'
     name = "wmt"
 
-    def __init__(self, src_tokenizer, trg_tokenizer,
+    def __init__(self,
                  batch_size: int = 1,
                  download: bool = False,
                  root: str = '.data',
@@ -69,9 +69,6 @@ class WMTDataModule(pl.LightningDataModule):
         self.download: bool = download
         self.data_root: str = root
         self.file_path: str = os.path.join(self.data_root, self.file_name)
-
-        self.trg_tokenizer = trg_tokenizer
-        self.src_tokenizer = src_tokenizer
 
         self.src_file = self.file_path + "_src_only"
         self.trg_file = self.file_path + "_trg_only"
@@ -116,7 +113,6 @@ class WMTDataModule(pl.LightningDataModule):
         return extracted_file
 
     def preprocess_line(self, line: str):
-        # line = line.replace("\n", "")
         return line.lower()
 
     def split_files(self, file_path):
@@ -185,7 +181,7 @@ class WMTDataModule(pl.LightningDataModule):
         with io.open(os.path.expanduser(file), encoding="utf8") as f:
             for line in f:
                 tokenized_line = tokenizer.encode(
-                    line, output_type=yttm.OutputType.ID)
+                    line, output_type=yttm.OutputType.ID, bos=True, eos=True)
                 data.append(tokenized_line)
 
         return data
@@ -210,10 +206,10 @@ class WMTDataModule(pl.LightningDataModule):
         batch.sort(key=lambda x: len(x[1]))
 
         for src_tokens, trg_tokens in batch:
-            src_tokens_t: torch.IntTensor = torch.IntTensor(src_tokens)
+            src_tokens_t: torch.LongTensor = torch.LongTensor(src_tokens)
             src_tensors.append(src_tokens_t)
 
-            trg_tokens_t: torch.IntTensor = torch.IntTensor(trg_tokens)
+            trg_tokens_t: torch.LongTensor = torch.LongTensor(trg_tokens)
             trg_tensors.append(trg_tokens_t)
 
         return stack_and_pad_tensors(src_tensors), stack_and_pad_tensors(trg_tensors)
