@@ -119,8 +119,8 @@ class TransformerLightningModule(pl.LightningModule):
     def add_model_specific_args(parent_parser):
         parser = ArgumentParser(parents=[parent_parser], add_help=False)
 
-        parser.add_argument("--src_vocab_size", type=int)
-        parser.add_argument("--trg_vocab_size", type=int)
+        parser.add_argument("--src_vocab_size", type=int, default=10000)
+        parser.add_argument("--trg_vocab_size", type=int, default=10000)
         parser.add_argument("--hidden_dim", type=int)
         parser.add_argument("--num_blocks", type=int)
         parser.add_argument("--key_query_value_dim", type=int)
