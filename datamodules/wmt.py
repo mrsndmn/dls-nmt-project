@@ -234,7 +234,7 @@ class WMTDataModule(pl.LightningDataModule):
         return src_padded, trg_padded
 
     def train_dataloader(self) -> DataLoader:
-        return DataLoader(self.wmt, batch_size=self.batch_size, collate_fn=self.collate_fn, shuffle=False)
+        return DataLoader(self.wmt, batch_size=self.batch_size, collate_fn=self.collate_fn, shuffle=False, num_workers=-1)
 
     def val_dataloader(self) -> DataLoader:
         return self.train_dataloader()
