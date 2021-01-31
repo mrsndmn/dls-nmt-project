@@ -116,7 +116,7 @@ class Transformer(nn.Module):
         src_extended_mask: torch.Tensor = torch.full((batch_size, max_len), False) # batch_size x max_len
         src_extended_mask[:, :src_mask.size(1)] = src_mask
 
-        src_more_tokens_padding = torch.full((batch_size, num_tokens_more), src_pad_idx)
+        src_more_tokens_padding = torch.full((batch_size, num_tokens_more), src_pad_idx, device=src_tokens.device)
         src_tokens = torch.cat((src_tokens, src_more_tokens_padding), dim=1) # batch_size x max_len
 
         src_embeddings = self.input_embeddings(src_tokens)

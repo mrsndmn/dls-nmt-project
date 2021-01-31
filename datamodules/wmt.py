@@ -16,6 +16,7 @@ from torchnlp.encoders.text import stack_and_pad_tensors
 from torchnlp.utils import collate_tensors
 
 import youtokentome as yttm
+import pickle
 
 
 class TextTranslationDataset(torch.utils.data.Dataset):
@@ -194,9 +195,18 @@ class WMTDataModule(pl.LightningDataModule):
 
         self.bpe_tokenize()
 
-        # todo cache tokenized files
-        src_data = self.tokenize_file(self.src_file, self.src_bpe)
-        trg_data = self.tokenize_file(self.trg_file, self.trg_bpe)
+        self.src_pickle = self.name + ".pickle"
+        if os.path.isfile(self.src_pickle):
+            with open(self.src_pickle, 'rb') as f:
+                src_data = pickle.load(f)
+                trg_data = pickle.load(f)
+        else:
+            with open(self.src_pickle, 'wb') as f:
+                src_data = self.tokenize_file(self.src_file, self.src_bpe)
+                trg_data = self.tokenize_file(self.trg_file, self.trg_bpe)
+                pickle.dump(src_data, f)
+                pickle.dump(trg_data, f)
+
 
         self.wmt = TextTranslationDataset(src_data, trg_data)
 
