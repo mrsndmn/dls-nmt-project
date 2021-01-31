@@ -1,6 +1,8 @@
 import os, math, random
 from argparse import ArgumentParser
+from nltk.translate.bleu_score import corpus_bleu
 
+import youtokentome as yttm
 import pytorch_lightning as pl
 import torch
 from torchnlp.encoders.text.text_encoder import BatchedSequences
@@ -10,8 +12,7 @@ from models import transformer
 
 
 class TransformerLightningModule(pl.LightningModule):
-    def __init__(
-        self,
+    def __init__(self,
         src_vocab_size: int,
         trg_vocab_size: int,
         hidden_dim: int=256,
@@ -21,11 +22,12 @@ class TransformerLightningModule(pl.LightningModule):
         smoothing: float = 0.1,
         lr: float = 1e-4,
         noam_opt_warmup_steps: int= 4000,
+        trg_bpe=None,
     ):
 
         super(TransformerLightningModule, self).__init__()
 
-        self.save_hyperparameters()
+        self.save_hyperparameters("src_vocab_size", "trg_vocab_size", "hidden_dim", "num_blocks", "key_query_value_dim", "padding_token_idx", "smoothing", "lr", "noam_opt_warmup_steps")
 
         self.transformer = transformer.Transformer(src_vocab_size, trg_vocab_size, hidden_dim,
                                                    num_blocks=num_blocks,
@@ -33,31 +35,33 @@ class TransformerLightningModule(pl.LightningModule):
 
         self.criterion = transformer.LabelSmoothing(trg_vocab_size, padding_token_idx=padding_token_idx, smoothing=smoothing)
 
+        self.trg_bpe: yttm.BPE = trg_bpe
+
         return
 
-
     def training_step(self, batch, batch_idx):
-        src_padded_tokens: BatchedSequences
-        trg_padded_tokens: BatchedSequences
-        src_padded_tokens, trg_padded_tokens = batch
+        src_batched_seq: BatchedSequences
+        trg_batched_seq: BatchedSequences
+        src_batched_seq, trg_batched_seq = batch
 
-        src_tokens: torch.Tensor = src_padded_tokens.tensor
-        src_mask: torch.Tensor = lengths_to_mask(src_padded_tokens.lengths, device=src_tokens.device)
+        src_tokens: torch.Tensor = src_batched_seq.tensor
+        _src_mask: torch.Tensor = lengths_to_mask(src_batched_seq.lengths, device=src_tokens.device)
+        src_mask = torch.full_like(src_tokens, False, device=src_tokens.device)
+        src_mask[:, :_src_mask.size(1)] = _src_mask
 
-        assert src_mask.size() == src_padded_tokens.tensor.size()
-
-        trg_tokens: torch.Tensor = trg_padded_tokens.tensor
-        trg_mask: torch.Tensor = lengths_to_mask(trg_padded_tokens.lengths, device=src_tokens.device)
+        trg_tokens: torch.Tensor = trg_batched_seq.tensor
+        _trg_mask: torch.Tensor = lengths_to_mask(trg_batched_seq.lengths, device=trg_tokens.device)
+        trg_mask = torch.full_like(trg_tokens, False, device=trg_tokens.device)
+        trg_mask[:, :_trg_mask.size(1)] = _trg_mask
         # целевые токены будем определять так:
         # просто рандомное число, которое будет меньше seq_len'а каждого предложения.
         # с учетом этого и будем формировать маску
         target_token_positions = []
-        for i, seq_len in enumerate(list(trg_padded_tokens.lengths.numpy())):
+        for i, seq_len in enumerate(list(trg_batched_seq.lengths.numpy())):
             assert seq_len > 1
             visible_length = random.randint(1, seq_len-1)
             trg_mask[i, visible_length:] = False
 
-        # todo how to determine target token?
         target_token_idxs: torch.Tensor = trg_tokens[torch.arange(trg_tokens.size(0)), target_token_positions]
 
         transformer_output = self.transformer.forward(src_tokens, trg_tokens, src_mask=src_mask, trg_mask=trg_mask)
@@ -69,19 +73,51 @@ class TransformerLightningModule(pl.LightningModule):
 
         return loss
 
+    # todo dropout
     def validation_step(self, batch, batch_idx):
-        pass
 
+        src_batched_seq: BatchedSequences
+        trg_batched_seq: BatchedSequences
+        src_batched_seq, trg_batched_seq = batch
+
+        src_tokens: torch.Tensor = src_batched_seq.tensor
+        trg_tokens: torch.Tensor = trg_batched_seq.tensor
+
+        translation = self.transformer.encode_decode(src_batched_seq)
+
+        ignore_ids = [0,1,2,3]
+        translation = translation.detach().cpu().numpy().tolist()
+        translation = self.trg_bpe.decode(translation, ignore_ids=ignore_ids)
+        target = trg_batched_seq.tensor.detach().cpu().numpy().tolist()
+        target = self.trg_bpe.decode(target, ignore_ids=ignore_ids)
+
+        translation_str = "\n".join(translation)
+        target_str = "\n".join(target)
+        self.logger.experiment.add_text("translate_decoded", translation_str)
+        self.logger.experiment.add_text("translate_target", target_str)
+
+        return translation_str, target_str
+
+    def validation_epoch_end(self, validation_step_outputs):
+        generated = []
+        references = []
+        for vout in validation_step_outputs:
+            generated.append(vout[0])
+            references.append([vout[1]])
+
+        calculated_bleu = corpus_bleu(references, generated)
+        self.log("valid_bleu", calculated_bleu)
+        return
 
     @staticmethod
     def add_model_specific_args(parent_parser):
         parser = ArgumentParser(parents=[parent_parser], add_help=False)
 
-        parser.add_argument("--src_vocab_size", type=int, help="")
-        parser.add_argument("--trg_vocab_size", type=int, help="")
-        parser.add_argument("--hidden_dim", type=int, help="")
-        parser.add_argument("--num_blocks", type=int, help="")
-        parser.add_argument("--key_query_value_dim", type=int, help="")
+        parser.add_argument("--src_vocab_size", type=int)
+        parser.add_argument("--trg_vocab_size", type=int)
+        parser.add_argument("--hidden_dim", type=int)
+        parser.add_argument("--num_blocks", type=int)
+        parser.add_argument("--key_query_value_dim", type=int)
 
         parser.add_argument("--lr", type=float)
 
@@ -108,22 +144,27 @@ def cli_main(args=None):
     parser = ArgumentParser()
 
     # todo support other datamodules
-    dm_cls = WMTDataModule()
 
     parser = TransformerLightningModule.add_model_specific_args(parser)
     parser = pl.Trainer.add_argparse_args(parser)
     args = parser.parse_args(args)
 
-    dm = dm_cls.from_argparse_args(args)
-    dm.download_dataset()
-    dm.bpe_tokenize()
-
+    dm = WMTDataModule()
+    dm.setup()
 
     if args.max_steps == -1:
         args.max_steps = None
 
-    transformer_model = TransformerLightningModule(dm.src_bpe.vocab_size(), dm.trg_bpe.vocab_size(), 512)
+    args.src_vocab_size = dm.src_bpe.vocab_size()
+    args.trg_vocab_size = dm.trg_bpe.vocab_size()
 
+    transformer_model = TransformerLightningModule(args.src_vocab_size, args.trg_vocab_size,
+                                                   hidden_dim=args.hidden_dim,
+                                                   num_blocks=args.num_blocks,
+                                                   key_query_value_dim=args.key_query_value_dim,
+                                                   trg_bpe=dm.trg_bpe)
+
+    print("training")
     trainer = pl.Trainer.from_argparse_args(args)
     trainer.fit(transformer_model, datamodule=dm)
     return dm, transformer_model, trainer

@@ -7,6 +7,8 @@ import pytorch_lightning as pl
 
 import torch
 from torch.utils.data import DataLoader, Dataset, random_split
+from torchnlp.encoders.text.text_encoder import BatchedSequences
+
 from torchtext.utils import download_from_url, extract_archive, unicode_csv_reader
 
 import torchtext
@@ -193,6 +195,7 @@ class WMTDataModule(pl.LightningDataModule):
 
         self.bpe_tokenize()
 
+        # todo cache tokenized files
         src_data = self.tokenize_file(self.src_file, self.src_bpe)
         trg_data = self.tokenize_file(self.trg_file, self.trg_bpe)
 
@@ -212,10 +215,17 @@ class WMTDataModule(pl.LightningDataModule):
             trg_tokens_t: torch.LongTensor = torch.LongTensor(trg_tokens)
             trg_tensors.append(trg_tokens_t)
 
-        return stack_and_pad_tensors(src_tensors), stack_and_pad_tensors(trg_tensors)
+        src_trg_padded_stacked: BatchedSequences = stack_and_pad_tensors([*src_tensors, *trg_tensors])
+
+        src_padded: BatchedSequences = BatchedSequences( src_trg_padded_stacked.tensor[:len(src_tensors)], src_trg_padded_stacked.lengths[:len(src_tensors)] )
+        trg_padded: BatchedSequences = BatchedSequences( src_trg_padded_stacked.tensor[len(src_tensors):], src_trg_padded_stacked.lengths[len(src_tensors):] )
+
+        assert src_padded.tensor.size() == trg_padded.tensor.size()
+
+        return src_padded, trg_padded
 
     def train_dataloader(self) -> DataLoader:
         return DataLoader(self.wmt, batch_size=self.batch_size, collate_fn=self.collate_fn, shuffle=False)
 
     def val_dataloader(self) -> DataLoader:
-        return DataLoader(self.wmt, batch_size=self.batch_size)
+        return self.train_dataloader()

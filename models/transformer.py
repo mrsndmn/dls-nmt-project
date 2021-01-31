@@ -2,6 +2,8 @@ import math
 
 import torch
 import torch.nn as nn
+from torchnlp.utils import lengths_to_mask
+from torchnlp.encoders.text.text_encoder import BatchedSequences
 
 from models.encoder import TransformerEncoderBlock, EncoderBlocksSequential
 from models.decoder import TransformerDecoderBlock, DecoderBlocksSequential
@@ -76,7 +78,72 @@ class Transformer(nn.Module):
         decoder_output = self.decoder_blocks.forward(
             trg_embeddings, encoder_outputs, src_mask=src_mask, trg_mask=trg_mask)
 
-        return decoder_output
+        return decoder_output # batch_size x seq_len x hidden_dim
+
+    def _build_seq_eos_mask(self, tokens: torch.Tensor, eos_id=3, curr_pos_in_seq=0):
+        """
+        маскирует токены, которые идут после eos токена
+        """
+
+        current_max_seq_len = tokens.size(1)
+        lengths = []
+        for seq in tokens:
+            eos_indexes = torch.nonzero(seq == eos_id)
+            if eos_indexes.size(0) == 0:
+                lengths.append(current_max_seq_len)
+            else:
+                current_len = eos_indexes[0,0]
+                lengths.append(current_len)
+        assert len(lengths) == tokens.size(0)
+
+        mask: torch.Tensor = lengths_to_mask(lengths, device=tokens.device)
+        return mask
+
+
+    def encode_decode(self, src_batched_seq: BatchedSequences, src_pad_idx=0, trg_pad_idx=0, trg_bos_id=2, trg_eos_id=3, max_len=None):
+        """
+        Greedy decoder
+        """
+
+        src_tokens, src_le = src_batched_seq.tensor, src_batched_seq.lengths
+        src_mask: torch.Tensor = lengths_to_mask(src_batched_seq.lengths, device=src_tokens.device)
+
+        batch_size = src_tokens.size(0)
+        num_tokens_more = 10
+        if max_len is None:
+            max_len = src_mask.size(1) + num_tokens_more
+            num_tokens_more += src_mask.size(1) - src_tokens.size(1) # src_tokens и src_mask могут иметь разные размерности в seq_len!
+
+        src_extended_mask: torch.Tensor = torch.full((batch_size, max_len), False) # batch_size x max_len
+        src_extended_mask[:, :src_mask.size(1)] = src_mask
+
+        src_more_tokens_padding = torch.full((batch_size, num_tokens_more), src_pad_idx)
+        src_tokens = torch.cat((src_tokens, src_more_tokens_padding), dim=1) # batch_size x max_len
+
+        src_embeddings = self.input_embeddings(src_tokens)
+        encoder_outputs = self.encoder_blocks.forward(src_embeddings, src_mask=src_extended_mask)
+
+        # batch_size x max_len
+        trg_tokens = torch.full((batch_size, max_len), trg_pad_idx, device=src_tokens.device)
+        trg_tokens[:, 0] = trg_bos_id
+
+        trg_mask = torch.full_like(src_extended_mask, False)
+        for i in range(1, max_len):
+            trg_mask[:, i-1] = True
+
+            trg_embeddings = self.target_embeddings(trg_tokens)
+            decoder_output = self.decoder_blocks.forward(
+                trg_embeddings, encoder_outputs, src_mask=src_extended_mask, trg_mask=trg_mask)
+
+            # batch_size x trg_vocab_size
+            trg_tokens_probabilities = self.generator.forward(decoder_output)
+            _, next_tokens = torch.max(trg_tokens_probabilities, dim=1)
+
+            trg_tokens[:, i] = next_tokens
+
+        return trg_tokens
+
+
 
 
 class TransformerGenerator(nn.Module):

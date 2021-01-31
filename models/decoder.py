@@ -50,7 +50,7 @@ class TransformerDecoderBlock(nn.Module):
         decoder_hidden = self.masked_multihead_attention_add_norm(
             decoder_hidden, mask=trg_mask)
         encoder_decoder_outputs = self.encoder_decoder_block(
-            encoder_outputs, decoder_hidden, mask=trg_mask)
+            encoder_outputs, decoder_hidden, mask=src_mask)
 
         feed_forward_inputs = self.encoder_decoder_norm(
             decoder_hidden + encoder_decoder_outputs)
