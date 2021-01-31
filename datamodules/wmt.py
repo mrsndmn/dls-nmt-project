@@ -195,7 +195,7 @@ class WMTDataModule(pl.LightningDataModule):
 
         self.bpe_tokenize()
 
-        self.src_pickle = self.name + ".pickle"
+        self.src_pickle = self.file_path + ".pickle"
         if os.path.isfile(self.src_pickle):
             with open(self.src_pickle, 'rb') as f:
                 src_data = pickle.load(f)
