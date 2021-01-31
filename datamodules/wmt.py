@@ -57,7 +57,7 @@ class WMTDataModule(pl.LightningDataModule):
 
     def __init__(self,
                  batch_size: int = 1,
-                 download: bool = False,
+                 download: bool = True,
                  root: str = '.data',
                  max_lines=None,
                  force=False,
@@ -190,8 +190,7 @@ class WMTDataModule(pl.LightningDataModule):
 
     def setup(self, stage=None):
 
-        if self.download:
-            self.download_dataset()
+        self.download_dataset()
 
         self.bpe_tokenize()
 
