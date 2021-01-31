@@ -57,7 +57,7 @@ class TransformerLightningModule(pl.LightningModule):
         # просто рандомное число, которое будет меньше seq_len'а каждого предложения.
         # с учетом этого и будем формировать маску
         target_token_positions = []
-        for i, seq_len in enumerate(list(trg_batched_seq.lengths.numpy())):
+        for i, seq_len in enumerate(list(trg_batched_seq.lengths.clone().detach().cpu().numpy())):
             assert seq_len > 1
             visible_length = random.randint(1, seq_len-1)
             trg_mask[i, visible_length:] = False
