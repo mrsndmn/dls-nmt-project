@@ -132,7 +132,10 @@ class TransformerLightningModule(pl.LightningModule):
 
     def noam_opt(self, current_step: int):
         min_inv_sqrt = min(1/math.sqrt(current_step+1), current_step / math.sqrt(self.hparams.noam_opt_warmup_steps))
-        return min_inv_sqrt / math.sqrt(self.hparams.hidden_dim)
+        current_lr = min_inv_sqrt / math.sqrt(self.hparams.hidden_dim)
+
+        self.log("lr", current_lr)
+        return current_lr
 
     def configure_optimizers(self):
         opt = torch.optim.Adam(self.transformer.parameters(), lr=self.hparams.lr)
