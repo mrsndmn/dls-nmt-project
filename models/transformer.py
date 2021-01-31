@@ -57,6 +57,8 @@ class Transformer(nn.Module):
         self.encoder_blocks = EncoderBlocksSequential(encoder_blocks)
         self.decoder_blocks = DecoderBlocksSequential(decoder_blocks)
 
+        self.generator = TransformerGenerator(hidden_dim, trg_vocab_size)
+
         for p in self.parameters():
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
@@ -89,3 +91,28 @@ class TransformerGenerator(nn.Module):
     def forward(self, transformer_output):
         last_token = transformer_output[:, -1, :] # batch_size, hidden_dim
         return self.out_linear(last_token)
+
+
+# copy-paste http://nlp.seas.harvard.edu/2018/04/03/attention.html#decoder
+class LabelSmoothing(nn.Module):
+    "Implement label smoothing."
+    def __init__(self, trg_vocab_size, padding_token_idx: int = 0, smoothing=0.1):
+        super(LabelSmoothing, self).__init__()
+        self.criterion = nn.KLDivLoss(size_average=False)
+        self.padding_token_idx = padding_token_idx
+        self.confidence = 1.0 - smoothing
+        self.smoothing = smoothing
+        self.trg_vocab_size = trg_vocab_size
+        self.true_dist = None
+
+    def forward(self, trg_tokens_probas, target_token_idxs):
+        assert trg_tokens_probas.size(1) == self.trg_vocab_size
+        true_dist = trg_tokens_probas.data.clone()
+        true_dist.fill_(self.smoothing / (self.size - 2))
+        true_dist.scatter_(1, target_token_idxs.data.unsqueeze(1), self.confidence)
+        true_dist[:, self.padding_token_idx] = 0
+        mask = torch.nonzero(target_token_idxs.data == self.padding_token_idx)
+        if mask.dim() > 0:
+            true_dist.index_fill_(0, mask.squeeze(), 0.0)
+        self.true_dist = true_dist
+        return self.criterion(trg_tokens_probas, torch.Variable(true_dist, requires_grad=False))
