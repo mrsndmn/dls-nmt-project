@@ -151,7 +151,7 @@ class TransformerLightningModule(pl.LightningModule):
         min_inv_sqrt = min(1/math.sqrt(current_step+1), current_step / math.sqrt(self.hparams.noam_opt_warmup_steps))
         current_lr = min_inv_sqrt / math.sqrt(self.hparams.hidden_dim)
 
-        self.logger.experiment.add_scalar("lr", current_lr)
+        self.logger.experiment.add_scalar("lr", current_lr, current_step)
         return current_lr
 
     def configure_optimizers(self):
