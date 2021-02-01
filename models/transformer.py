@@ -105,7 +105,9 @@ class Transformer(nn.Module):
         """
 
         src_tokens, src_le = src_batched_seq.tensor, src_batched_seq.lengths
-        src_mask: torch.Tensor = lengths_to_mask(src_batched_seq.lengths, device=src_tokens.device)
+        _src_mask: torch.Tensor = lengths_to_mask(src_batched_seq.lengths, device=src_tokens.device)
+        src_mask = torch.full_like(src_tokens, False, device=src_tokens.device)
+        src_mask[:, :_src_mask.size(1)] = _src_mask
 
         batch_size = src_tokens.size(0)
         num_tokens_more = 10
