@@ -75,6 +75,17 @@ class TransformerLightningModule(pl.LightningModule):
 
         return loss
 
+    def _filter_eos_seq(self, sentenses, eos_tok_id=3):
+        sentenses_decoded = []
+        for _seq in sentenses:
+            seq = []
+            for tok in _seq:
+                if tok == 3:
+                    break
+                seq.append(tok)
+            sentenses_decoded.append(seq)
+        return sentenses_decoded
+
     # todo dropout
     def validation_step(self, batch, batch_idx):
 
@@ -87,24 +98,27 @@ class TransformerLightningModule(pl.LightningModule):
 
         translation = self.transformer.encode_decode(src_batched_seq)
 
-        ignore_ids = [] # [0,1,2,3]
+        ignore_ids = [0,1,2]
         translation = translation.detach().cpu().numpy().tolist()
-        translation_decoded = self.trg_bpe.decode(translation, ignore_ids=ignore_ids)
+        _translation_decoded = self.trg_bpe.decode(translation, ignore_ids=ignore_ids)
+        translation_decoded = self._filter_eos_seq(_translation_decoded)
+
+
         target = trg_batched_seq.tensor.detach().cpu().numpy().tolist()
-        target_decoded = self.trg_bpe.decode(target, ignore_ids=ignore_ids)
+        _target_decoded = self.trg_bpe.decode(target, ignore_ids=ignore_ids)
+        target_decoded = self._filter_eos_seq(target)
 
-        translation_str = "\n".join(translation_decoded)
-        target_str = "\n".join(target_decoded)
-
-        return translation_str, target_str
+        return translation_decoded, target_decoded
 
     def validation_epoch_end(self, validation_step_outputs):
         generated = []
         references = []
 
         for vout in validation_step_outputs:
-            generated.append(vout[0])
-            references.append([vout[1]])
+            for gen_seq in vout[0]:
+                generated.append(gen_seq)
+            for trg_seq in vout[1]:
+                references.append([trg_seq])
 
         translation_str = "\n".join(generated[:5])
         target_str = "\n".join(x[0] for x in references[:5])
