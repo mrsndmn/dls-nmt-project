@@ -121,8 +121,8 @@ class TransformerLightningModule(pl.LightningModule):
             for trg_seq in vout[1]:
                 references.append([trg_seq])
 
-        translation_str = "\n".join(generated[:5])
-        target_str = "\n".join(x[0] for x in references[:5])
+        translation_str = "\n\n\n".join(generated[:5])
+        target_str = "\n\n\n".join(x[0] for x in references[:5])
         self.logger.experiment.add_text("translate_decoded", translation_str)
         self.logger.experiment.add_text("translate_target", target_str)
 
