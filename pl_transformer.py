@@ -100,13 +100,14 @@ class TransformerLightningModule(pl.LightningModule):
 
         ignore_ids = [0,1,2]
         translation = translation.detach().cpu().numpy().tolist()
-        _translation_decoded = self.trg_bpe.decode(translation, ignore_ids=ignore_ids)
-        translation_decoded = self._filter_eos_seq(_translation_decoded)
-
+        translation = self._filter_eos_seq(translation)
+        translation_decoded = self.trg_bpe.decode(translation, ignore_ids=ignore_ids)
 
         target = trg_batched_seq.tensor.detach().cpu().numpy().tolist()
-        _target_decoded = self.trg_bpe.decode(target, ignore_ids=ignore_ids)
-        target_decoded = self._filter_eos_seq(target)
+        target = self._filter_eos_seq(target)
+        target_decoded = self.trg_bpe.decode(target, ignore_ids=ignore_ids)
+
+        assert len(translation_decoded) == len(target_decoded)
 
         return translation_decoded, target_decoded
 
@@ -116,14 +117,14 @@ class TransformerLightningModule(pl.LightningModule):
 
         for vout in validation_step_outputs:
             for gen_seq in vout[0]:
-                generated.extend(gen_seq)
+                generated.append(gen_seq)
             for trg_seq in vout[1]:
-                references.extend([trg_seq])
+                references.append([trg_seq])
 
         translation_str = "\n".join(generated[:5])
         target_str = "\n".join(x[0] for x in references[:5])
-        self.logger.experiment.add_text("translate_decoded", translation_str, self.current_epoch)
-        self.logger.experiment.add_text("translate_target", target_str, self.current_epoch)
+        self.logger.experiment.add_text("translate_decoded", translation_str)
+        self.logger.experiment.add_text("translate_target", target_str)
 
         calculated_bleu = corpus_bleu(references, generated)
         self.log("valid_bleu", calculated_bleu)
