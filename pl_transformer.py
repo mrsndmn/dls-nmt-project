@@ -71,7 +71,7 @@ class TransformerLightningModule(pl.LightningModule):
 
         loss = self.criterion(trg_tokens_probabilities, target_token_idxs)
 
-        self.log("loss", loss)
+        self.log("loss", loss.item())
 
         return loss
 
