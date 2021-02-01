@@ -116,9 +116,9 @@ class TransformerLightningModule(pl.LightningModule):
 
         for vout in validation_step_outputs:
             for gen_seq in vout[0]:
-                generated.append(gen_seq)
+                generated.extend(gen_seq)
             for trg_seq in vout[1]:
-                references.append([trg_seq])
+                references.extend([trg_seq])
 
         translation_str = "\n".join(generated[:5])
         target_str = "\n".join(x[0] for x in references[:5])
