@@ -61,6 +61,7 @@ class WMTDataModule(pl.LightningDataModule):
 
     def __init__(self,
                  batch_size: int = 1,
+                 val_batch_size: int = 1,
                  download: bool = True,
                  root: str = '.data',
                  max_lines=None,
@@ -73,6 +74,7 @@ class WMTDataModule(pl.LightningDataModule):
         super(WMTDataModule, self).__init__()
 
         self.batch_size = batch_size
+        self.val_batch_size = val_batch_size
 
         self.download: bool = download
         self.data_root: str = root
@@ -274,4 +276,5 @@ class WMTDataModule(pl.LightningDataModule):
         return DataLoader(self.wmt, batch_size=self.batch_size, collate_fn=self.collate_fn, shuffle=False, num_workers=1)
 
     def val_dataloader(self) -> DataLoader:
-        return self.train_dataloader()
+        return DataLoader(self.wmt, batch_size=self.val_batch_size, collate_fn=self.collate_fn, shuffle=False, num_workers=1)
+
