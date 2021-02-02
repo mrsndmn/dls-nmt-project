@@ -67,6 +67,8 @@ class WMTDataModule(pl.LightningDataModule):
                  force=False,
                  src_vocab_size=10000,
                  trg_vocab_size=10000,
+                 max_seq_len_tokens=100,
+                 min_seq_len_tokens=6,
                  ):
         super(WMTDataModule, self).__init__()
 
@@ -93,6 +95,8 @@ class WMTDataModule(pl.LightningDataModule):
         self.max_lines = max_lines
 
         self.force = force
+        self.max_seq_len_tokens = max_seq_len_tokens
+        self.min_seq_len_tokens = min_seq_len_tokens
 
         return
 
@@ -207,8 +211,20 @@ class WMTDataModule(pl.LightningDataModule):
             with open(self.src_pickle, 'wb') as f:
                 src_data = self.tokenize_file(self.src_file, self.src_bpe)
                 trg_data = self.tokenize_file(self.trg_file, self.trg_bpe)
-                pickle.dump(src_data, f)
-                pickle.dump(trg_data, f)
+                src_data_filtered = []
+                trg_data_filtered = []
+                for i in range(len(trg_data)):
+                    src = src_data[i]
+                    trg = trg_data[i]
+                    if len(src) > self.max_seq_len_tokens or len(src) < self.min_seq_len_tokens:
+                        continue
+                    if len(trg) > self.max_seq_len_tokens or len(trg) < self.min_seq_len_tokens:
+                        continue
+                    src_data_filtered.append(src)
+                    trg_data_filtered.append(trg)
+
+                pickle.dump(src_data_filtered, f)
+                pickle.dump(trg_data_filtered, f)
 
 
         self.wmt = TextTranslationDataset(src_data, trg_data)
