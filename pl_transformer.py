@@ -25,6 +25,7 @@ class TransformerLightningModule(pl.LightningModule):
         noam_opt_warmup_steps: int= 1000,
         trg_bpe=None,
         scheduler: str="noam",
+        scheduler_patience:int=10
     ):
 
         super(TransformerLightningModule, self).__init__()
@@ -118,6 +119,7 @@ class TransformerLightningModule(pl.LightningModule):
 
         parser.add_argument("--lr", type=float)
         parser.add_argument("--scheduler", default="noam")
+        parser.add_argument("--scheduler_patience", default=10)
 
         # parser.add_argument("--num_workers", type=int, default=8)
         # parser.add_argument("--data_dir", type=str, default=".")
@@ -137,7 +139,10 @@ class TransformerLightningModule(pl.LightningModule):
         elif self.hparams.scheduler == "noam":
             opt_sched = torch.optim.lr_scheduler.LambdaLR(opt, self.noam_opt)
         elif self.hparams.scheduler == "pletau":
-            opt_sched = torch.optim.lr_scheduler.ReduceLROnPlateau(opt, 'min', patience=10, min_lr=1e-5, factor=0.5, verbose=True)
+            scheduler_patience = self.hparams.scheduler_patience
+            if scheduler_patience is None:
+                scheduler_patience = 10
+            opt_sched = torch.optim.lr_scheduler.ReduceLROnPlateau(opt, 'min', patience=scheduler_patience, min_lr=1e-5, factor=0.5, verbose=True)
         else:
             raise ValueError("unknown scheduler " + self.hparams.scheduler)
 
@@ -176,6 +181,7 @@ def cli_main(args=None):
                                                    noam_opt_warmup_steps=args.noam_opt_warmup_steps,
                                                    lr=args.lr,
                                                    scheduler=args.scheduler,
+                                                   scheduler_patience=args.scheduler_patience,
                                                    trg_bpe=dm.trg_bpe)
 
     trainer = pl.Trainer.from_argparse_args(args)
