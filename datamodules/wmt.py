@@ -69,7 +69,7 @@ class WMTDataModule(pl.LightningDataModule):
                  src_vocab_size=10000,
                  trg_vocab_size=10000,
                  max_seq_len_tokens=100,
-                 min_seq_len_tokens=6,
+                 min_seq_len_tokens=10,
                  ):
         super(WMTDataModule, self).__init__()
 
