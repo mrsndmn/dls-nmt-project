@@ -120,13 +120,14 @@ class TransformerLightningModule(pl.LightningModule):
         min_inv_sqrt = min(1/math.sqrt(current_step+1), current_step / math.sqrt(self.hparams.noam_opt_warmup_steps))
         current_lr = min_inv_sqrt / math.sqrt(self.hparams.hidden_dim)
 
-        self.logger.experiment.add_scalar("lr", current_lr, current_step)
+        self.logger.experiment.add_scalar("lr", current_lr, self.trainer.global_step)
+        print(self.trainer.global_step, current_lr)
         return current_lr
 
     def configure_optimizers(self):
         opt = torch.optim.Adam(self.transformer.parameters(), lr=self.hparams.lr)
         opt_sched = torch.optim.lr_scheduler.LambdaLR(opt, self.noam_opt)
-        return [opt], [{"scheduler": opt_sched}]
+        return [opt], [{"scheduler": opt_sched, "interval": "step"}]
 
 # copy-paste https://github.com/PyTorchLightning/pytorch-lightning-bolts/blob/master/pl_bolts/models/autoencoders/basic_vae/basic_vae_module.py
 def cli_main(args=None):
