@@ -59,12 +59,13 @@ class TransformerDecoderBlock(nn.Module):
 
 
 class DecoderBlocksSequential(nn.Module):
-    def __init__(self, decoder_blocks: List[TransformerDecoderBlock]):
+    def __init__(self, decoder_blocks: List[TransformerDecoderBlock], hidden_dim):
         super(DecoderBlocksSequential, self).__init__()
         self.decoder_blocks = nn.ModuleList(decoder_blocks)
+        self.norm = nn.LayerNorm(hidden_dim)
 
     def forward(self, target_embeddings, encoder_outputs, src_mask=None, trg_mask=None):
         decoder_output = target_embeddings
         for decoder_block in self.decoder_blocks:
             decoder_output = decoder_block(decoder_output, encoder_outputs, src_mask=src_mask, trg_mask=trg_mask)
-        return decoder_output
+        return self.norm(decoder_output)

@@ -49,14 +49,23 @@ class TransformerLightningModule(pl.LightningModule):
         transformer_output = self.transformer.forward(batch.src_tensor, batch.trg_tensor, src_mask=batch.src_mask, trg_mask=batch.trg_mask)
         trg_tokens_probabilities = self.transformer.generator.forward(transformer_output) # batch_size, seq_len, hidd_dim
 
+        probas_size = torch.Size((trg_tokens_probabilities.size(0), trg_tokens_probabilities.size(1), self.hparams.trg_vocab_size))
+        assert trg_tokens_probabilities.size() == probas_size, f"trg_tokens_probabilities.size() != {probas_size}"
+
         loss = self.criterion(trg_tokens_probabilities, batch.trg_y_tensor)
         loss /= batch.n_trg_tokens
 
         self.log("loss", loss.item())
 
         opt = self.optimizers()
-        self.log("lr", opt.param_groups[0]['lr'])
+        self.log("lr", opt.param_groups[0]['lr'], prog_bar=True)
         # print(opt.param_groups[0]['lr'])
+
+        with torch.no_grad():
+            translation = self.transformer.encode_decode(batch.src_tensor, src_mask=batch.src_mask)
+            print("src first 5 tokens", batch.src_tensor[:, :10])
+            print("translation first 5 tokens", translation[:, :10])
+            print("target first 5 tokens", batch.trg_y_tensor[:, :10])
 
         return loss
 
@@ -76,6 +85,8 @@ class TransformerLightningModule(pl.LightningModule):
 
         translation = self.transformer.encode_decode(batch.src_tensor, src_mask=batch.src_mask)
 
+        print("translation first 5 tokens", translation[:, :5])
+
         ignore_ids = [0,1,2]
         translation = translation.detach().cpu().numpy().tolist()
         translation = self._filter_eos_seq(translation)
@@ -86,6 +97,9 @@ class TransformerLightningModule(pl.LightningModule):
         target_decoded = self.trg_bpe.decode(target, ignore_ids=ignore_ids)
 
         assert len(translation_decoded) == len(target_decoded)
+
+        print(translation_decoded[:2])
+        print(target_decoded[:2])
 
         return translation_decoded, target_decoded
 
@@ -112,8 +126,8 @@ class TransformerLightningModule(pl.LightningModule):
     def add_model_specific_args(parent_parser):
         parser = ArgumentParser(parents=[parent_parser], add_help=False)
 
-        parser.add_argument("--src_vocab_size", type=int, default=10000)
-        parser.add_argument("--trg_vocab_size", type=int, default=10000)
+        parser.add_argument("--src_vocab_size", type=int, default=1000)
+        parser.add_argument("--trg_vocab_size", type=int, default=1000)
         parser.add_argument("--hidden_dim", type=int)
         parser.add_argument("--num_blocks", type=int)
         parser.add_argument("--key_query_value_dim", type=int)

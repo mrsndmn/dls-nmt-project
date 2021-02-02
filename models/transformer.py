@@ -29,9 +29,22 @@ class PositionalEncoding(nn.Module):
         x = x + self.pe[:, :x.size(1), :]
         return self.dropout(x)
 
+
+class NormedEmbeddings(nn.Module):
+    def __init__(self, vocab_size, hidden_dim):
+        super(NormedEmbeddings, self).__init__()
+        self.emb = nn.Embedding(vocab_size, hidden_dim)
+        self.hidden_dim_sqrt = math.sqrt(hidden_dim)
+
+    def forward(self, x):
+        return self.emb(x) * self.hidden_dim_sqrt
+
 class Transformer(nn.Module):
     def __init__(self, src_vocab_size: int, trg_vocab_size: int, hidden_dim: int, num_blocks: int = 6, key_query_value_dim=64, num_heads: int = None):
         super(Transformer, self).__init__()
+
+        self.trg_vocab_size = trg_vocab_size
+        self.src_vocab_size = src_vocab_size
 
         if num_heads is None:
             num_heads = hidden_dim // key_query_value_dim
@@ -40,11 +53,11 @@ class Transformer(nn.Module):
             raise ValueError('num_heads must be positive')
 
         self.input_embeddings = nn.Sequential(
-            nn.Embedding(src_vocab_size, hidden_dim),
+            NormedEmbeddings(src_vocab_size, hidden_dim),
             PositionalEncoding(hidden_dim),
         )
         self.target_embeddings = nn.Sequential(
-            nn.Embedding(trg_vocab_size, hidden_dim),
+            NormedEmbeddings(trg_vocab_size, hidden_dim),
             PositionalEncoding(hidden_dim),
         )
 
@@ -56,7 +69,7 @@ class Transformer(nn.Module):
             hidden_dim, key_query_value_dim=key_query_value_dim, num_heads=num_heads) for _ in range(num_blocks)]
 
         self.encoder_blocks = EncoderBlocksSequential(encoder_blocks)
-        self.decoder_blocks = DecoderBlocksSequential(decoder_blocks)
+        self.decoder_blocks = DecoderBlocksSequential(decoder_blocks, hidden_dim=hidden_dim)
 
         self.generator = TransformerGenerator(hidden_dim, trg_vocab_size)
 
@@ -112,18 +125,28 @@ class Transformer(nn.Module):
         trg_tokens = torch.full_like(src_padded, trg_pad_idx, device=src_padded.device, dtype=src_padded.dtype)
         trg_tokens[:, 0] = trg_bos_id
 
-        trg_mask = torch.full_like(src_mask, False)
-        for i in range(1, src_mask.size(1)):
-            trg_mask[:, i-1] = True
+        batch_size = trg_tokens.size(0)
+        seq_len = trg_tokens.size(1)
 
-            # print(trg_tokens.size())
+        # trg_mask = torch.full_like(src_mask, False)
+        for i in range(1, trg_tokens.size(1)):
+
+            trui_tensor = (torch.triu(torch.ones((trg_tokens.size(0), seq_len, seq_len)), diagonal=1 - seq_len + i) == 0)
+            pad_idx = 0
+            trg_mask = (trg_tokens != pad_idx).unsqueeze(-2) & trui_tensor
+
+            # print("trg_tokens", trg_tokens[0, i-1])
             trg_embeddings = self.target_embeddings(trg_tokens)
             decoder_output = self.decoder_blocks.forward(
                 trg_embeddings, encoder_outputs, src_mask=src_mask, trg_mask=trg_mask)
 
-            # batch_size x seq_len x trg_vocab_size
-            trg_tokens_probabilities = self.generator.forward(decoder_output)
-            _, next_tokens = torch.max(trg_tokens_probabilities[:, i, :], dim=1)
+            last_current_token_decoded = decoder_output[:, i, :]
+            # print("last_current_token_decoded", last_current_token_decoded[0, :2])
+            # batch_size x trg_vocab_size
+            trg_tokens_probabilities = self.generator.forward(last_current_token_decoded)
+            _, next_tokens = torch.max(trg_tokens_probabilities, dim=1)
+
+            # print("next_token", next_tokens[0])
 
             trg_tokens[:, i] = next_tokens
 
@@ -151,32 +174,35 @@ class LabelSmoothing(nn.Module):
     "Implement label smoothing."
     def __init__(self, trg_vocab_size, padding_token_idx: int = 0, smoothing=0.1):
         super(LabelSmoothing, self).__init__()
-        self.criterion = nn.KLDivLoss(size_average=False)
+        self.criterion = nn.KLDivLoss(reduction='sum')
         self.padding_token_idx = padding_token_idx
         self.confidence = 1.0 - smoothing
         self.smoothing = smoothing
         self.trg_vocab_size = trg_vocab_size
         self.true_dist = None
 
-    def forward(self, trg_tokens_probas, target_token_idxs, save_true_dist=False):
-        # trg_tokens_probas: batch_size x seq_len x vocab_dim
+    def forward(self, trg_tokens_logprobas, target_token_idxs, save_true_dist=False):
+        # trg_tokens_logprobas: batch_size x seq_len x vocab_dim
         # target_token_idxs: batch_size x seq_len
-        # print(trg_tokens_probas.shape, target_token_idxs.shape)
-        assert trg_tokens_probas.size(2) == self.trg_vocab_size # vocab size
-        assert trg_tokens_probas.size(1) == target_token_idxs.size(1) # seq len
-        assert trg_tokens_probas.size(0) == target_token_idxs.size(0) # batch size
+        # print(trg_tokens_logprobas.shape, target_token_idxs.shape)
+        assert trg_tokens_logprobas.size(2) == self.trg_vocab_size # vocab size
+        assert trg_tokens_logprobas.size(1) == target_token_idxs.size(1) # seq len
+        assert trg_tokens_logprobas.size(0) == target_token_idxs.size(0) # batch size
 
-        smooth_value = self.smoothing / (self.trg_vocab_size - 2)
+        smooth_value = self.smoothing / (self.trg_vocab_size - 1) # -2 for padding
         # batch_size x seq_len x vocab_dim
-        true_dist = torch.full_like(trg_tokens_probas, smooth_value, device=trg_tokens_probas.device, dtype=trg_tokens_probas.dtype)
+        true_dist = torch.full_like(trg_tokens_logprobas, smooth_value, device=trg_tokens_logprobas.device, dtype=trg_tokens_logprobas.dtype)
         #                       # bs, seq_len, 1
         # print('scatter_indexes', scatter_indexes.size())
         true_dist.scatter_(2, target_token_idxs.unsqueeze(2), self.confidence)
         true_dist[:, :, self.padding_token_idx] = 0
 
         mask = target_token_idxs == self.padding_token_idx
-        true_dist[mask] == 0
+        true_dist[mask] = 0
+
+        with torch.no_grad():
+            print(trg_tokens_logprobas[0, 0, :5], true_dist[0, 0, :5].log())
 
         if save_true_dist:
             self.true_dist = true_dist
-        return self.criterion(trg_tokens_probas, torch.autograd.Variable(true_dist, requires_grad=False))
+        return self.criterion(trg_tokens_logprobas, torch.autograd.Variable(true_dist, requires_grad=False))

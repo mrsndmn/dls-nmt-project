@@ -41,7 +41,7 @@ class TextTranslationDataset(torch.utils.data.Dataset):
         self._trg_data = trg_data
 
     def __getitem__(self, i):
-        return self._src_data[-i], self._trg_data[-i]
+        return self._src_data[i], self._trg_data[i]
 
     def __len__(self):
         return len(self._src_data)
