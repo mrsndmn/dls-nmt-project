@@ -32,6 +32,7 @@ class TransformerLightningModule(pl.LightningModule):
         super(TransformerLightningModule, self).__init__()
 
         self.save_hyperparameters("src_vocab_size", "trg_vocab_size", "hidden_dim", "num_blocks", "key_query_value_dim", "padding_token_idx", "smoothing", "lr", "noam_opt_warmup_steps", "scheduler", "noam_step_factor")
+        print(self.hparams)
 
         self.transformer = transformer.Transformer(src_vocab_size, trg_vocab_size, hidden_dim,
                                                    num_blocks=num_blocks,
@@ -55,7 +56,7 @@ class TransformerLightningModule(pl.LightningModule):
 
         opt = self.optimizers()
         self.log("lr", opt.param_groups[0]['lr'])
-        # print(opt.param_groups[0]['lr'])
+        print(opt.param_groups[0]['lr'])
 
         return loss
 
@@ -116,7 +117,7 @@ class TransformerLightningModule(pl.LightningModule):
         parser.add_argument("--hidden_dim", type=int)
         parser.add_argument("--num_blocks", type=int)
         parser.add_argument("--key_query_value_dim", type=int)
-        parser.add_argument("--noam_opt_warmup_steps", type=int, default=1000)
+        parser.add_argument("--noam_opt_warmup_steps", type=int, default=4000)
 
         parser.add_argument("--lr", type=float)
         parser.add_argument("--scheduler", default="noam")
@@ -130,8 +131,8 @@ class TransformerLightningModule(pl.LightningModule):
         return parser
 
     def noam_opt(self, current_step: int):
-        current_step = current_step * self.hparams.noam_step_factor
-        min_inv_sqrt = min(1/math.sqrt(self.trainer.global_step+1), self.trainer.global_step * self.hparams.noam_opt_warmup_steps ** (-1.5))
+        current_step = self.trainer.global_step * self.hparams.noam_step_factor
+        min_inv_sqrt = min(1/math.sqrt(current_step+1), current_step * self.hparams.noam_opt_warmup_steps ** (-1.5))
         current_lr = 2 * min_inv_sqrt / math.sqrt(self.hparams.hidden_dim)
         return current_lr
 
