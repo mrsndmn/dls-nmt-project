@@ -35,4 +35,4 @@ def test_generator():
         seq_len = 7
         trnsfm_gen_input = torch.rand((batch_size, seq_len, hid_dim))
         trnsfm_gen_output = trnsfm_gen.forward(trnsfm_gen_input)
-        assert trnsfm_gen_output.size() == torch.Size((batch_size, trg_vocab_size))
+        assert trnsfm_gen_output.size() == torch.Size((batch_size, seq_len, trg_vocab_size))

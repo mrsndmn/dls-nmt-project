@@ -69,7 +69,10 @@ class TransformerLightningModule(pl.LightningModule):
         transformer_output = self.transformer.forward(src_tokens, trg_tokens, src_mask=src_mask, trg_mask=trg_mask)
         trg_tokens_probabilities = self.transformer.generator.forward(transformer_output)
 
+        trg_tokens_probabilities = trg_tokens_probabilities.contiguous().view(-1, x.size(-1))
+        target_token_idxs = target_token_idxs.contiguous().view(-1)
         loss = self.criterion(trg_tokens_probabilities, target_token_idxs)
+        loss /= src_tokens.size(0)
 
         self.log("loss", loss.item())
 

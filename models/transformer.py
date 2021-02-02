@@ -159,8 +159,8 @@ class TransformerGenerator(nn.Module):
         )
 
     def forward(self, transformer_output):
-        last_token = transformer_output[:, -1, :] # batch_size, hidden_dim
-        return self.out_linear(last_token)
+        # transformer_output: # batch_size, seq_len, hidden_dim
+        return self.out_linear(transformer_output)  # batch_size, seq_len, trg_vocab_size
 
 
 # copy-paste http://nlp.seas.harvard.edu/2018/04/03/attention.html#decoder

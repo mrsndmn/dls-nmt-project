@@ -18,6 +18,9 @@ from torchnlp.utils import collate_tensors
 import youtokentome as yttm
 import pickle
 
+from collections import namedtuple
+
+TransformerBatchedSequencesWithMasks = namedtuple('TransformerBatchedSequencesWithMasks', ['src_tensor', 'src_mask', 'trg_tensor', 'trg_y_tensor', 'trg_mask', 'n_trg_tokens'])
 
 class TextTranslationDataset(torch.utils.data.Dataset):
     def __init__(self, src_data, trg_data):
@@ -81,8 +84,8 @@ class WMTDataModule(pl.LightningDataModule):
         self.src_vocab_size = src_vocab_size
         self.trg_vocab_size = trg_vocab_size
 
-        self.src_bpe = None
-        self.trg_bpe = None
+        self.src_bpe: yttm.BPE = None
+        self.trg_bpe: yttm.BPE = None
 
         self.wmt = None
 
@@ -217,21 +220,38 @@ class WMTDataModule(pl.LightningDataModule):
         trg_tensors = []
         batch.sort(key=lambda x: len(x[1]))
 
+        pad_idx = 0
+
+        max_seq_len = 0
         for src_tokens, trg_tokens in batch:
-            src_tokens_t: torch.LongTensor = torch.LongTensor(src_tokens)
-            src_tensors.append(src_tokens_t)
+            src_len = len(src_tokens)
+            trg_len = len(trg_tokens)
+            max_seq_len = max(max_seq_len, src_len, trg_len)
 
-            trg_tokens_t: torch.LongTensor = torch.LongTensor(trg_tokens)
-            trg_tensors.append(trg_tokens_t)
+        src_max_seq_len = max_seq_len
+        trg_max_seq_len = max_seq_len + 1
 
-        src_trg_padded_stacked: BatchedSequences = stack_and_pad_tensors([*src_tensors, *trg_tensors])
+        # длинна src должна быть на один меньше, чем длинна таргета
+        # потому что потом тагрет нужно будет сдвинуть
+        batch_size = len(batch)
+        src_padded = torch.full((batch_size, src_max_seq_len), pad_idx, dtype=torch.long)
+        trg_padded = torch.full((batch_size, trg_max_seq_len), pad_idx, dtype=torch.long)
 
-        src_padded: BatchedSequences = BatchedSequences( src_trg_padded_stacked.tensor[:len(src_tensors)], src_trg_padded_stacked.lengths[:len(src_tensors)] )
-        trg_padded: BatchedSequences = BatchedSequences( src_trg_padded_stacked.tensor[len(src_tensors):], src_trg_padded_stacked.lengths[len(src_tensors):] )
+        for src_tokens, trg_tokens in batch:
+            src_padded[:, :len(src_tokens)] = torch.LongTensor(src_tokens)
+            trg_padded[:, :len(trg_tokens)] = torch.LongTensor(trg_tokens)
 
-        assert src_padded.tensor.size() == trg_padded.tensor.size()
+        trg_y_padded = trg_padded[:, 1:]
+        trg_padded = trg_padded[:, :-1]
 
-        return src_padded, trg_padded
+        src_mask = (src_padded != pad_idx).unsqueeze(-2)
+
+        trui_tensor = (torch.triu(torch.ones(batch_size, max_seq_len, max_seq_len), diagonal=1) == 0)
+        trg_mask = (trg_y_padded != pad_idx).unsqueeze(-2) & trui_tensor
+
+        num_target_tokens = (trg_y_padded != pad_idx).sum().item()
+
+        return TransformerBatchedSequencesWithMasks(src_padded, src_mask, trg_padded, trg_y_padded, trg_mask, num_target_tokens)
 
     def train_dataloader(self) -> DataLoader:
         return DataLoader(self.wmt, batch_size=self.batch_size, collate_fn=self.collate_fn, shuffle=False, num_workers=1)

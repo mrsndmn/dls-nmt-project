@@ -1,36 +1,29 @@
 import pytest
 
 import datamodules.wmt as wmt
-from nltk.tokenize import WordPunctTokenizer
 
-from torchnlp.encoders.text.text_encoder import BatchedSequences
+from datamodules.wmt import TransformerBatchedSequencesWithMasks
 
 def test_wmt14_datamodule():
-    wpt = WordPunctTokenizer()
     max_lines = 10000
     batch_size = 5
-    wmtdm = wmt.WMTDataModule(wpt, wpt, download=True, batch_size=batch_size, force=False, max_lines=max_lines)
+    wmtdm = wmt.WMTDataModule(download=True, batch_size=batch_size, force=False, max_lines=max_lines)
 
     wmtdm.setup()
 
     triain_dl = wmtdm.train_dataloader()
 
-    src_padded_tokens: BatchedSequences
-    trg_padded_tokens: BatchedSequences
-    src_padded_tokens, trg_padded_tokens = next(iter(triain_dl))
+    batch: TransformerBatchedSequencesWithMasks = next(iter(triain_dl))
 
-    print("src_padded_tokens", src_padded_tokens)
-    print("trg_padded_tokens", trg_padded_tokens)
+    print(wmtdm.src_bpe.decode(batch.src_tensor.numpy().tolist()))
+    print(wmtdm.trg_bpe.decode(batch.trg_tensor.numpy().tolist()))
 
-    print(wmtdm.src_bpe.decode(list(src_padded_tokens.tensor.numpy())))
-    print(wmtdm.trg_bpe.decode(list(trg_padded_tokens.tensor.numpy())))
+    assert batch.src_tensor.size(0) == batch_size
+    assert batch.trg_tensor.size(0) == batch_size
+    assert batch.trg_tensor.size(1) == batch.src_tensor.size(1)
+    assert batch.trg_y_tensor.size(1) == batch.src_tensor.size(1)
 
-    assert len(src_padded_tokens.tensor.shape) == 2 # batch_size x max_seq_len
-    assert src_padded_tokens.tensor.shape[0] == batch_size
-    assert trg_padded_tokens.tensor.shape[0] == batch_size
-
-    print(wmtdm.bad_lines)
+    # print(wmtdm.bad_lines)
     assert wmtdm.wmt is not None
-    assert 0 < len(wmtdm.wmt) < max_lines
 
     print("wmtdm.bad_lines", wmtdm.bad_lines)
