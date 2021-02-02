@@ -253,9 +253,10 @@ class WMTDataModule(pl.LightningDataModule):
         src_padded = torch.full((batch_size, src_max_seq_len), pad_idx, dtype=torch.long)
         trg_padded = torch.full((batch_size, trg_max_seq_len), pad_idx, dtype=torch.long)
 
-        for src_tokens, trg_tokens in batch:
-            src_padded[:, :len(src_tokens)] = torch.LongTensor(src_tokens)
-            trg_padded[:, :len(trg_tokens)] = torch.LongTensor(trg_tokens)
+        for i, src_trg in enumerate(batch):
+            src_tokens, trg_tokens = src_trg
+            src_padded[i, :len(src_tokens)] = torch.LongTensor(src_tokens)
+            trg_padded[i, :len(trg_tokens)] = torch.LongTensor(trg_tokens)
 
         trg_y_padded = trg_padded[:, 1:]
         trg_padded = trg_padded[:, :-1]

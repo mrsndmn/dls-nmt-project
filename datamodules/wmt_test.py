@@ -15,9 +15,6 @@ def test_wmt14_datamodule():
 
     batch: TransformerBatchedSequencesWithMasks = next(iter(triain_dl))
 
-    print(wmtdm.src_bpe.decode(batch.src_tensor.numpy().tolist()))
-    print(wmtdm.trg_bpe.decode(batch.trg_tensor.numpy().tolist()))
-
     assert batch.src_tensor.size(0) == batch_size
     assert batch.trg_tensor.size(0) == batch_size
     assert batch.trg_tensor.size(1) == batch.src_tensor.size(1)
