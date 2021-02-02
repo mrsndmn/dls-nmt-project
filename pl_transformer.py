@@ -53,7 +53,7 @@ class TransformerLightningModule(pl.LightningModule):
 
         opt = self.optimizers()
         self.log("lr", opt.param_groups[0]['lr'])
-        print(opt.param_groups[0]['lr'])
+        # print(opt.param_groups[0]['lr'])
 
         return loss
 
@@ -133,8 +133,6 @@ class TransformerLightningModule(pl.LightningModule):
     def configure_optimizers(self):
         opt = torch.optim.Adam(self.transformer.parameters(), lr=self.hparams.lr)
 
-        print("self.hparams.scheduler", self.hparams.scheduler)
-        print("self.hparams.lr", self.hparams.lr)
         if not self.hparams.scheduler:
             return opt
 
