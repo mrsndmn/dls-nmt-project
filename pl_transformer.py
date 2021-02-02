@@ -22,15 +22,16 @@ class TransformerLightningModule(pl.LightningModule):
         smoothing: float = 0.1,
         # lr: float = 1e-4,
         lr: float = 1, # see also lr scheduler
-        noam_opt_warmup_steps: int= 1000,
+        noam_opt_warmup_steps: int= 4000,
         trg_bpe=None,
         scheduler: str="noam",
-        scheduler_patience:int=10
+        scheduler_patience:int=10,
+        noam_step_factor: int = 1,
     ):
 
         super(TransformerLightningModule, self).__init__()
 
-        self.save_hyperparameters("src_vocab_size", "trg_vocab_size", "hidden_dim", "num_blocks", "key_query_value_dim", "padding_token_idx", "smoothing", "lr", "noam_opt_warmup_steps", "scheduler")
+        self.save_hyperparameters("src_vocab_size", "trg_vocab_size", "hidden_dim", "num_blocks", "key_query_value_dim", "padding_token_idx", "smoothing", "lr", "noam_opt_warmup_steps", "scheduler", "noam_step_factor")
 
         self.transformer = transformer.Transformer(src_vocab_size, trg_vocab_size, hidden_dim,
                                                    num_blocks=num_blocks,
@@ -120,6 +121,8 @@ class TransformerLightningModule(pl.LightningModule):
         parser.add_argument("--lr", type=float)
         parser.add_argument("--scheduler", default="noam")
         parser.add_argument("--scheduler_patience", default=10)
+        parser.add_argument("--noam_step_factor", default=1)
+
 
         # parser.add_argument("--num_workers", type=int, default=8)
         # parser.add_argument("--data_dir", type=str, default=".")
@@ -127,6 +130,7 @@ class TransformerLightningModule(pl.LightningModule):
         return parser
 
     def noam_opt(self, current_step: int):
+        current_step = current_step * self.hparams.noam_step_factor
         min_inv_sqrt = min(1/math.sqrt(self.trainer.global_step+1), self.trainer.global_step * self.hparams.noam_opt_warmup_steps ** (-1.5))
         current_lr = 2 * min_inv_sqrt / math.sqrt(self.hparams.hidden_dim)
         return current_lr
@@ -182,6 +186,7 @@ def cli_main(args=None):
                                                    lr=args.lr,
                                                    scheduler=args.scheduler,
                                                    scheduler_patience=args.scheduler_patience,
+                                                   noam_step_factor=args.noam_step_factor,
                                                    trg_bpe=dm.trg_bpe)
 
     trainer = pl.Trainer.from_argparse_args(args)
