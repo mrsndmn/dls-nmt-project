@@ -117,8 +117,8 @@ class TransformerLightningModule(pl.LightningModule):
         return parser
 
     def noam_opt(self, current_step: int):
-        min_inv_sqrt = min(1/math.sqrt(current_step+1), current_step / math.sqrt(self.hparams.noam_opt_warmup_steps))
-        current_lr = min_inv_sqrt / math.sqrt(self.hparams.hidden_dim)
+        min_inv_sqrt = min(1/math.sqrt(self.trainer.global_step+1), self.trainer.global_step * self.hparams.noam_opt_warmup_steps ** (-1.5))
+        current_lr = 2 * min_inv_sqrt / math.sqrt(self.hparams.hidden_dim)
 
         self.logger.experiment.add_scalar("lr", current_lr, self.trainer.global_step)
         return current_lr
