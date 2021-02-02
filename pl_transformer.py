@@ -24,11 +24,12 @@ class TransformerLightningModule(pl.LightningModule):
         lr: float = 1, # see also lr scheduler
         noam_opt_warmup_steps: int= 1000,
         trg_bpe=None,
+        scheduler: bool= True,
     ):
 
         super(TransformerLightningModule, self).__init__()
 
-        self.save_hyperparameters("src_vocab_size", "trg_vocab_size", "hidden_dim", "num_blocks", "key_query_value_dim", "padding_token_idx", "smoothing", "lr", "noam_opt_warmup_steps")
+        self.save_hyperparameters("src_vocab_size", "trg_vocab_size", "hidden_dim", "num_blocks", "key_query_value_dim", "padding_token_idx", "smoothing", "lr", "noam_opt_warmup_steps", "scheduler")
 
         self.transformer = transformer.Transformer(src_vocab_size, trg_vocab_size, hidden_dim,
                                                    num_blocks=num_blocks,
@@ -52,6 +53,7 @@ class TransformerLightningModule(pl.LightningModule):
 
         opt = self.optimizers()
         self.log("lr", opt.param_groups[0]['lr'])
+        print(opt.param_groups[0]['lr'])
 
         return loss
 
@@ -115,6 +117,8 @@ class TransformerLightningModule(pl.LightningModule):
         parser.add_argument("--noam_opt_warmup_steps", type=int, default=1000)
 
         parser.add_argument("--lr", type=float)
+        parser.add_argument("--no_scheduler", dest='scheduler', default=False, action='store_false')
+        parser.set_defaults(feature=True)
 
         # parser.add_argument("--num_workers", type=int, default=8)
         # parser.add_argument("--data_dir", type=str, default=".")
@@ -128,7 +132,14 @@ class TransformerLightningModule(pl.LightningModule):
 
     def configure_optimizers(self):
         opt = torch.optim.Adam(self.transformer.parameters(), lr=self.hparams.lr)
+
+        print("self.hparams.scheduler", self.hparams.scheduler)
+        print("self.hparams.lr", self.hparams.lr)
+        if not self.hparams.scheduler:
+            return opt
+
         opt_sched = torch.optim.lr_scheduler.LambdaLR(opt, self.noam_opt)
+
         return [opt], [{"scheduler": opt_sched, "interval": "step"}]
 
 # copy-paste https://github.com/PyTorchLightning/pytorch-lightning-bolts/blob/master/pl_bolts/models/autoencoders/basic_vae/basic_vae_module.py
@@ -161,6 +172,8 @@ def cli_main(args=None):
                                                    num_blocks=args.num_blocks,
                                                    key_query_value_dim=args.key_query_value_dim,
                                                    noam_opt_warmup_steps=args.noam_opt_warmup_steps,
+                                                   lr=args.lr,
+                                                   scheduler=args.scheduler,
                                                    trg_bpe=dm.trg_bpe)
 
     trainer = pl.Trainer.from_argparse_args(args)
