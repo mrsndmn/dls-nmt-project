@@ -20,7 +20,7 @@ jobs:
 
       - name: install deps
         run: |
-          pip install pytest pytorch-lightning torch pytorch-nlp --find-links https://download.pytorch.org/whl/cpu/torch_stable.html
+          pip install pytest pytorch-lightning torch pytorch-nlp torchtext --find-links https://download.pytorch.org/whl/cpu/torch_stable.html
       - name: run tests
         run: |
           PYTHONPATH=. pytest -sv ./
