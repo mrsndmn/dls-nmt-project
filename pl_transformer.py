@@ -56,7 +56,7 @@ class TransformerLightningModule(pl.LightningModule):
 
         opt = self.optimizers()
         self.log("lr", opt.param_groups[0]['lr'])
-        print(opt.param_groups[0]['lr'])
+        # print(opt.param_groups[0]['lr'])
 
         return loss
 
