@@ -20,7 +20,8 @@ class TransformerLightningModule(pl.LightningModule):
         key_query_value_dim: int=32,
         padding_token_idx: int = 0,
         smoothing: float = 0.1,
-        lr: float = 1e-4,
+        # lr: float = 1e-4,
+        lr: float = 1, # see also lr scheduler
         noam_opt_warmup_steps: int= 1000,
         trg_bpe=None,
     ):
@@ -48,6 +49,9 @@ class TransformerLightningModule(pl.LightningModule):
         loss /= batch.n_trg_tokens
 
         self.log("loss", loss.item())
+
+        opt = self.optimizers()
+        self.log("lr", opt.param_groups[0]['lr'])
 
         return loss
 
@@ -120,8 +124,6 @@ class TransformerLightningModule(pl.LightningModule):
     def noam_opt(self, current_step: int):
         min_inv_sqrt = min(1/math.sqrt(self.trainer.global_step+1), self.trainer.global_step * self.hparams.noam_opt_warmup_steps ** (-1.5))
         current_lr = 2 * min_inv_sqrt / math.sqrt(self.hparams.hidden_dim)
-
-        self.logger.experiment.add_scalar("lr", current_lr, self.trainer.global_step)
         return current_lr
 
     def configure_optimizers(self):
