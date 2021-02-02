@@ -21,7 +21,7 @@ class TransformerLightningModule(pl.LightningModule):
         padding_token_idx: int = 0,
         smoothing: float = 0.1,
         lr: float = 1e-4,
-        noam_opt_warmup_steps: int= 4000,
+        noam_opt_warmup_steps: int= 1000,
         trg_bpe=None,
     ):
 
@@ -108,6 +108,7 @@ class TransformerLightningModule(pl.LightningModule):
         parser.add_argument("--hidden_dim", type=int)
         parser.add_argument("--num_blocks", type=int)
         parser.add_argument("--key_query_value_dim", type=int)
+        parser.add_argument("--noam_opt_warmup_steps", type=int, default=1000)
 
         parser.add_argument("--lr", type=float)
 
@@ -157,9 +158,9 @@ def cli_main(args=None):
                                                    hidden_dim=args.hidden_dim,
                                                    num_blocks=args.num_blocks,
                                                    key_query_value_dim=args.key_query_value_dim,
+                                                   noam_opt_warmup_steps=args.noam_opt_warmup_steps,
                                                    trg_bpe=dm.trg_bpe)
 
-    print("training")
     trainer = pl.Trainer.from_argparse_args(args)
     trainer.fit(transformer_model, datamodule=dm)
     return dm, transformer_model, trainer
