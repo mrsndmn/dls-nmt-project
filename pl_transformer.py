@@ -121,7 +121,6 @@ class TransformerLightningModule(pl.LightningModule):
         current_lr = min_inv_sqrt / math.sqrt(self.hparams.hidden_dim)
 
         self.logger.experiment.add_scalar("lr", current_lr, self.trainer.global_step)
-        print(self.trainer.global_step, current_lr)
         return current_lr
 
     def configure_optimizers(self):
