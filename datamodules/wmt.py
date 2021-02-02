@@ -244,12 +244,12 @@ class WMTDataModule(pl.LightningDataModule):
         trg_y_padded = trg_padded[:, 1:]
         trg_padded = trg_padded[:, :-1]
 
-        src_mask = (src_padded != pad_idx).unsqueeze(-2)
+        src_mask = (src_padded != pad_idx)
 
         trui_tensor = (torch.triu(torch.ones(batch_size, max_seq_len, max_seq_len), diagonal=1) == 0)
         trg_mask = (trg_y_padded != pad_idx).unsqueeze(-2) & trui_tensor
 
-        num_target_tokens = (trg_y_padded != pad_idx).sum().item()
+        num_target_tokens = (trg_y_padded != pad_idx).sum()
 
         return TransformerBatchedSequencesWithMasks(src_padded, src_mask, trg_padded, trg_y_padded, trg_mask, num_target_tokens)
 

@@ -5,10 +5,10 @@ from nltk.translate.bleu_score import corpus_bleu
 import youtokentome as yttm
 import pytorch_lightning as pl
 import torch
-from torchnlp.encoders.text.text_encoder import BatchedSequences
 from torchnlp.utils import lengths_to_mask
 
 from models import transformer
+from datamodules.wmt import TransformerBatchedSequencesWithMasks
 
 
 class TransformerLightningModule(pl.LightningModule):
@@ -39,40 +39,13 @@ class TransformerLightningModule(pl.LightningModule):
 
         return
 
-    def training_step(self, batch, batch_idx):
-        src_batched_seq: BatchedSequences
-        trg_batched_seq: BatchedSequences
-        src_batched_seq, trg_batched_seq = batch
+    def training_step(self, batch: TransformerBatchedSequencesWithMasks, batch_idx):
 
-        src_tokens: torch.Tensor = src_batched_seq.tensor
-        _src_mask: torch.Tensor = lengths_to_mask(src_batched_seq.lengths, device=src_tokens.device)
-        src_mask = torch.full_like(src_tokens, False, device=src_tokens.device)
-        src_mask[:, :_src_mask.size(1)] = _src_mask
+        transformer_output = self.transformer.forward(batch.src_tensor, batch.trg_tensor, src_mask=batch.src_mask, trg_mask=batch.trg_mask)
+        trg_tokens_probabilities = self.transformer.generator.forward(transformer_output) # batch_size, seq_len, hidd_dim
 
-        trg_tokens: torch.Tensor = trg_batched_seq.tensor
-        _trg_mask: torch.Tensor = lengths_to_mask(trg_batched_seq.lengths, device=trg_tokens.device)
-        trg_mask = torch.full_like(trg_tokens, False, device=trg_tokens.device)
-        trg_mask[:, :_trg_mask.size(1)] = _trg_mask
-        # целевые токены будем определять так:
-        # просто рандомное число, которое будет меньше seq_len'а каждого предложения.
-        # с учетом этого и будем формировать маску
-        target_token_positions = []
-        for i, seq_len in enumerate(list(trg_batched_seq.lengths.clone().detach().cpu().numpy())):
-            assert seq_len > 1
-            visible_length = random.randint(1, seq_len-1)
-            trg_mask[i, visible_length:] = False
-            target_token_positions.append(visible_length)
-
-        assert len(target_token_positions) == trg_tokens.size(0)
-        target_token_idxs: torch.Tensor = trg_tokens[torch.arange(trg_tokens.size(0)), target_token_positions]
-
-        transformer_output = self.transformer.forward(src_tokens, trg_tokens, src_mask=src_mask, trg_mask=trg_mask)
-        trg_tokens_probabilities = self.transformer.generator.forward(transformer_output)
-
-        trg_tokens_probabilities = trg_tokens_probabilities.contiguous().view(-1, x.size(-1))
-        target_token_idxs = target_token_idxs.contiguous().view(-1)
-        loss = self.criterion(trg_tokens_probabilities, target_token_idxs)
-        loss /= src_tokens.size(0)
+        loss = self.criterion(trg_tokens_probabilities, batch.trg_y_tensor)
+        loss /= batch.n_trg_tokens
 
         self.log("loss", loss.item())
 
@@ -90,23 +63,16 @@ class TransformerLightningModule(pl.LightningModule):
         return sentenses_decoded
 
     # todo dropout
-    def validation_step(self, batch, batch_idx):
+    def validation_step(self, batch: TransformerBatchedSequencesWithMasks, batch_idx: int):
 
-        src_batched_seq: BatchedSequences
-        trg_batched_seq: BatchedSequences
-        src_batched_seq, trg_batched_seq = batch
-
-        src_tokens: torch.Tensor = src_batched_seq.tensor
-        trg_tokens: torch.Tensor = trg_batched_seq.tensor
-
-        translation = self.transformer.encode_decode(src_batched_seq)
+        translation = self.transformer.encode_decode(batch.src_tensor, src_mask=batch.src_mask)
 
         ignore_ids = [0,1,2]
         translation = translation.detach().cpu().numpy().tolist()
         translation = self._filter_eos_seq(translation)
         translation_decoded = self.trg_bpe.decode(translation, ignore_ids=ignore_ids)
 
-        target = trg_batched_seq.tensor.detach().cpu().numpy().tolist()
+        target = batch.trg_tensor.detach().cpu().numpy().tolist()
         target = self._filter_eos_seq(target)
         target_decoded = self.trg_bpe.decode(target, ignore_ids=ignore_ids)
 
