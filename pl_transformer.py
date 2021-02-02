@@ -24,7 +24,7 @@ class TransformerLightningModule(pl.LightningModule):
         lr: float = 1, # see also lr scheduler
         noam_opt_warmup_steps: int= 1000,
         trg_bpe=None,
-        scheduler: bool= True,
+        scheduler: str="noam",
     ):
 
         super(TransformerLightningModule, self).__init__()
@@ -117,8 +117,7 @@ class TransformerLightningModule(pl.LightningModule):
         parser.add_argument("--noam_opt_warmup_steps", type=int, default=1000)
 
         parser.add_argument("--lr", type=float)
-        parser.add_argument("--no_scheduler", dest='scheduler', default=False, action='store_false')
-        parser.set_defaults(feature=True)
+        parser.add_argument("--scheduler", default="noam")
 
         # parser.add_argument("--num_workers", type=int, default=8)
         # parser.add_argument("--data_dir", type=str, default=".")
@@ -133,12 +132,17 @@ class TransformerLightningModule(pl.LightningModule):
     def configure_optimizers(self):
         opt = torch.optim.Adam(self.transformer.parameters(), lr=self.hparams.lr)
 
-        if not self.hparams.scheduler:
+        if self.hparams.scheduler == "no":
             return opt
+        elif self.hparams.scheduler == "noam":
+            opt_sched = torch.optim.lr_scheduler.LambdaLR(opt, self.noam_opt)
+        elif self.hparams.scheduler == "pletau":
+            opt_sched = torch.optim.lr_scheduler.ReduceLROnPlateau(opt, 'min', patience=10, min_lr=1e-5, factor=0.5, verbose=True)
+        else:
+            raise ValueError("unknown scheduler " + self.hparams.scheduler)
 
-        opt_sched = torch.optim.lr_scheduler.LambdaLR(opt, self.noam_opt)
 
-        return [opt], [{"scheduler": opt_sched, "interval": "step"}]
+        return [opt], [{"scheduler": opt_sched, "interval": "step", "monitor": "loss"}]
 
 # copy-paste https://github.com/PyTorchLightning/pytorch-lightning-bolts/blob/master/pl_bolts/models/autoencoders/basic_vae/basic_vae_module.py
 def cli_main(args=None):
