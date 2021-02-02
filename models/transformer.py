@@ -131,7 +131,7 @@ class Transformer(nn.Module):
         # trg_mask = torch.full_like(src_mask, False)
         for i in range(1, trg_tokens.size(1)):
 
-            trui_tensor = (torch.triu(torch.ones((trg_tokens.size(0), seq_len, seq_len)), diagonal=1 - seq_len + i) == 0)
+            trui_tensor = (torch.triu(torch.ones((trg_tokens.size(0), seq_len, seq_len), device=trg_tokens.device), diagonal=1 - seq_len + i) == 0)
             pad_idx = 0
             trg_mask = (trg_tokens != pad_idx).unsqueeze(-2) & trui_tensor
 
