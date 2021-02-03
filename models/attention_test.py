@@ -12,17 +12,21 @@ def test_attention_forward():
         att = Attention(hidden_dim, key_and_query_dim=kq_dim, value_dim=v_dim)
 
         batch_size = 4
-        seq_len = 7
-        attention_input = torch.rand((batch_size, seq_len, hidden_dim))
+        q_seq_len = 2
+        kv_seq_len = 7
 
-        attention_output = att.forward(k_hidden_inputs=attention_input, q_hidden_inputs=attention_input, v_hidden_inputs=attention_input, mask=None)
+        q_attention_input = torch.rand((batch_size, q_seq_len, hidden_dim))
+        kv_attention_input = torch.rand((batch_size, kv_seq_len, hidden_dim))
+
+
+        attention_output = att.forward(q_hidden_inputs=q_attention_input, k_hidden_inputs=kv_attention_input, v_hidden_inputs=kv_attention_input, mask=None)
         assert attention_output.size() == torch.Size((batch_size, seq_len, v_dim))
         assert attention_output.sum().item() != 0
 
         mask = torch.ones((batch_size, seq_len, seq_len))
         mask[:, :, -1] = 0
 
-        attention_output = att.forward(k_hidden_inputs=attention_input, q_hidden_inputs=attention_input, v_hidden_inputs=attention_input, mask=mask, save_attention=True)
+        attention_output = att.forward(q_hidden_inputs=q_attention_input, k_hidden_inputs=kv_attention_input, v_hidden_inputs=kv_attention_input, mask=mask, save_attention=True)
         assert attention_output.size() == torch.Size((batch_size, seq_len, v_dim))
         assert att.attention[:, :, -1].sum().item() == 0
 
@@ -46,7 +50,7 @@ def test_multihead_attention():
         attention_input = torch.rand((batch_size, seq_len, hidden_dim))
 
         mha = MultiHeadAttention(hidden_dim, key_and_query_dim=kq_dim, value_dim=v_dim, num_heads=num_heads)
-        mha_ouptut = mha.forward(k_hidden_inputs=attention_input, q_hidden_inputs=attention_input, v_hidden_inputs=attention_input, mask=None)
+        mha_ouptut = mha.forward(q_hidden_inputs=attention_input, k_hidden_inputs=attention_input, v_hidden_inputs=attention_input, mask=None)
         assert mha_ouptut.size() == attention_input.size()
 
 def test_simple_multi_head_attention():

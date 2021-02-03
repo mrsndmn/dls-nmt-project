@@ -263,7 +263,7 @@ class WMTDataModule(pl.LightningDataModule):
         trg_y_padded = trg_padded[:, 1:]
         trg_padded = trg_padded[:, :-1]
 
-        src_mask = (src_padded != pad_idx)
+        src_mask = (src_padded != pad_idx).unsqueeze(-2)
 
         trui_tensor = (torch.triu(torch.ones(batch_size, max_seq_len, max_seq_len), diagonal=1) == 0)
         trg_mask = (trg_y_padded != pad_idx).unsqueeze(-2) & trui_tensor

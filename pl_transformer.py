@@ -61,11 +61,11 @@ class TransformerLightningModule(pl.LightningModule):
         self.log("lr", opt.param_groups[0]['lr'], prog_bar=True)
         # print(opt.param_groups[0]['lr'])
 
-        with torch.no_grad():
-            translation = self.transformer.encode_decode(batch.src_tensor, src_mask=batch.src_mask)
-            print("src first 5 tokens", batch.src_tensor[:, :10])
-            print("translation first 5 tokens", translation[:, :10])
-            print("target first 5 tokens", batch.trg_y_tensor[:, :10])
+        # with torch.no_grad():
+        #     translation = self.transformer.encode_decode(batch.src_tensor, src_mask=batch.src_mask)
+        #     print("\tsrc first 5 tokens", batch.src_tensor[:, :10])
+        #     print("\ttranslation first 5 tokens", translation[:, :10])
+        #     print("\ttarget first 5 tokens", batch.trg_y_tensor[:, :10])
 
         return loss
 
@@ -85,7 +85,7 @@ class TransformerLightningModule(pl.LightningModule):
 
         translation = self.transformer.encode_decode(batch.src_tensor, src_mask=batch.src_mask)
 
-        print("translation first 5 tokens", translation[:, :5])
+        # print("translation first 5 tokens", translation[:, :5])
 
         ignore_ids = [0,1,2]
         translation = translation.detach().cpu().numpy().tolist()
@@ -98,8 +98,9 @@ class TransformerLightningModule(pl.LightningModule):
 
         assert len(translation_decoded) == len(target_decoded)
 
-        print(translation_decoded[:2])
-        print(target_decoded[:2])
+        # print("translation_decoded size", len(translation_decoded))
+        # print("translation_decoded", translation_decoded[:10])
+        # print("target_decoded", target_decoded[:10])
 
         return translation_decoded, target_decoded
 

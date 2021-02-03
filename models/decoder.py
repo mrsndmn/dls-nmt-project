@@ -14,7 +14,7 @@ class TransformerEncoderDecoderConnectionBlock(nn.Module):
         return
 
     def forward(self, encoder_outputs, decoder_hidden, mask=None):
-        attention_outputs = self.multihead_attention.forward(k_hidden_inputs=encoder_outputs, q_hidden_inputs=encoder_outputs, v_hidden_inputs=decoder_hidden, mask=mask)
+        attention_outputs = self.multihead_attention.forward(q_hidden_inputs=decoder_hidden, k_hidden_inputs=encoder_outputs, v_hidden_inputs=encoder_outputs, mask=mask)
         return self.norm(decoder_hidden + attention_outputs)
 
 class TransformerDecoderBlock(nn.Module):
@@ -46,7 +46,6 @@ class TransformerDecoderBlock(nn.Module):
         return
 
     def forward(self, decoder_hidden, encoder_outputs, src_mask=None, trg_mask=None):
-
         decoder_hidden = self.masked_multihead_attention_add_norm(
             decoder_hidden, mask=trg_mask)
         encoder_decoder_outputs = self.encoder_decoder_block(

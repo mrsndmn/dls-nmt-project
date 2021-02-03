@@ -45,6 +45,7 @@ class Transformer(nn.Module):
 
         self.trg_vocab_size = trg_vocab_size
         self.src_vocab_size = src_vocab_size
+        self.hidden_dim = hidden_dim
 
         if num_heads is None:
             num_heads = hidden_dim // key_query_value_dim
@@ -128,19 +129,31 @@ class Transformer(nn.Module):
         batch_size = trg_tokens.size(0)
         seq_len = trg_tokens.size(1)
 
+        trui_tensor = (torch.triu(torch.ones((trg_tokens.size(0), seq_len, seq_len), device=trg_tokens.device), diagonal=1) == 0)
         # trg_mask = torch.full_like(src_mask, False)
         for i in range(1, trg_tokens.size(1)):
+            curr_trg = trg_tokens[:, :i]
+            curr_trui_tensor = trui_tensor[:, :i, :i]
 
-            trui_tensor = (torch.triu(torch.ones((trg_tokens.size(0), seq_len, seq_len), device=trg_tokens.device), diagonal=1 - seq_len + i) == 0)
             pad_idx = 0
-            trg_mask = (trg_tokens != pad_idx).unsqueeze(-2) & trui_tensor
+            trg_mask = (curr_trg != pad_idx).unsqueeze(-2) & curr_trui_tensor
 
             # print("trg_tokens", trg_tokens[0, i-1])
-            trg_embeddings = self.target_embeddings(trg_tokens)
+            trg_embeddings = self.target_embeddings(curr_trg)
+
+            # print("curr_trg", curr_trg.size())
+            # print("trg_embeddings.size()", trg_embeddings.size())
+            # print('trg_mask', trg_mask.size())
+            # print("encoder_outputs", encoder_outputs.size())
+            # print("src_mask", src_mask.size())
+            # есть предположение, что на этот шаг вообще не влияет trg_embeddings
+            # надо смотреть в аттеншн, что там происходит, возможно там все зануляется
             decoder_output = self.decoder_blocks.forward(
                 trg_embeddings, encoder_outputs, src_mask=src_mask, trg_mask=trg_mask)
 
-            last_current_token_decoded = decoder_output[:, i, :]
+            assert decoder_output.size() == torch.Size((batch_size, i, self.hidden_dim)), f"decoder_output.size(){decoder_output.size()} == torch.Size((batch_size, i, self.trg_vocab_size)){torch.Size((batch_size, i, self.trg_vocab_size))}"
+
+            last_current_token_decoded = decoder_output[:, -1, :]
             # print("last_current_token_decoded", last_current_token_decoded[0, :2])
             # batch_size x trg_vocab_size
             trg_tokens_probabilities = self.generator.forward(last_current_token_decoded)
@@ -199,9 +212,6 @@ class LabelSmoothing(nn.Module):
 
         mask = target_token_idxs == self.padding_token_idx
         true_dist[mask] = 0
-
-        with torch.no_grad():
-            print(trg_tokens_logprobas[0, 0, :5], true_dist[0, 0, :5].log())
 
         if save_true_dist:
             self.true_dist = true_dist

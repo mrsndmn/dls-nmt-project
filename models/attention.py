@@ -18,27 +18,39 @@ class Attention(nn.Module):
 
         self.attention: torch.Tensor = None
 
-    def forward(self, k_hidden_inputs: torch.Tensor, q_hidden_inputs: torch.Tensor, v_hidden_inputs: torch.Tensor, mask=None, save_attention=False):
+    def forward(self, q_hidden_inputs: torch.Tensor, k_hidden_inputs: torch.Tensor, v_hidden_inputs: torch.Tensor, mask=None, save_attention=False):
         """
         {kqv}_hidden_inputs: batch_size, seq_len, model_hid_dim
         """
 
-        keys: torch.Tensor = self.key_weights(k_hidden_inputs)      # bs, seq_len, k_dim
-        queries: torch.Tensor = self.query_weights(q_hidden_inputs) # bs, seq_len, q_dim
-        values: torch.Tensor = self.value_weights(v_hidden_inputs)  # bs, seq_len, v_dim
+        queries: torch.Tensor = self.query_weights(q_hidden_inputs) # bs, q_seq_len, q_dim
+        keys: torch.Tensor = self.key_weights(k_hidden_inputs)      # bs, k_seq_len, k_dim
+        values: torch.Tensor = self.value_weights(v_hidden_inputs)  # bs, v_seq_len, v_dim
 
-        keys_transposed = keys.permute(0, 2, 1) # bs, k_dim, seq_len
-        scaled_kv = torch.matmul(queries, keys_transposed) / self.kq_dim_root # # bs, seq_len, seq_len
+        batch_size = queries.size(0)
+        q_seq_len = queries.size(1)
+        k_seq_len = keys.size(1)
+        v_seq_len = values.size(1)
+        # print("q_seq_len", q_seq_len)
+        # print("k_seq_len", k_seq_len)
+        # print("v_seq_len", v_seq_len)
+        assert k_seq_len == v_seq_len, f'k_seq_len{k_seq_len} == v_seq_len{v_seq_len}'
+
+        keys_transposed = keys.permute(0, 2, 1) # bs, k_dim, k_seq_len
+        scaled_kv = torch.matmul(queries, keys_transposed) / self.kq_dim_root # # bs, q_seq_len, k_seq_len
+        assert scaled_kv.size() == torch.Size((batch_size, q_seq_len, k_seq_len))
 
         if mask is not None:
-            scaled_kv[mask == False] = self.neg_inf
+            # print("scaled_kv.size()", scaled_kv.size())
+            # print("mask.size()", mask.size())
+            scaled_kv.masked_fill_(mask == False, self.neg_inf)
 
         scaled_kv = self.softmax(scaled_kv)
 
         if save_attention:
             self.attention = scaled_kv
 
-        return torch.matmul(scaled_kv, values) # bs, seq_len, v_dim
+        return torch.matmul(scaled_kv, values) # bs, q_seq_len, v_dim
 
 
 class MultiHeadAttention(nn.Module):
@@ -54,11 +66,11 @@ class MultiHeadAttention(nn.Module):
 
         self.heads_weights = nn.Linear(num_heads * value_dim, hidden_dim)
 
-    def forward(self, k_hidden_inputs: torch.Tensor, q_hidden_inputs: torch.Tensor, v_hidden_inputs: torch.Tensor, mask=None):
+    def forward(self, q_hidden_inputs: torch.Tensor, k_hidden_inputs: torch.Tensor, v_hidden_inputs: torch.Tensor, mask=None):
 
         # bs, seq_len, v_dim * num_heads
         attention_outputs = torch.cat([attention(
-            k_hidden_inputs, q_hidden_inputs, v_hidden_inputs, mask=mask) for attention in self.attention_heads], dim=-1)
+            q_hidden_inputs, k_hidden_inputs, v_hidden_inputs, mask=mask) for attention in self.attention_heads], dim=-1)
 
         return self.heads_weights(attention_outputs) # bs, seq_len, hidd_dim
 
@@ -73,7 +85,7 @@ class SimpleMultiHeadAttention(MultiHeadAttention):
         return
 
     def forward(self, hidden_inputs, mask=None):
-        return super(SimpleMultiHeadAttention, self).forward(k_hidden_inputs=hidden_inputs, q_hidden_inputs=hidden_inputs, v_hidden_inputs=hidden_inputs, mask=mask)
+        return super(SimpleMultiHeadAttention, self).forward(q_hidden_inputs=hidden_inputs, k_hidden_inputs=hidden_inputs, v_hidden_inputs=hidden_inputs, mask=mask)
 
 
 class AddAndNorm(nn.Module):
