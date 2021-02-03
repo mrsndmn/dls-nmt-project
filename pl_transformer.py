@@ -148,7 +148,7 @@ class TransformerLightningModule(pl.LightningModule):
     def noam_opt(self, current_step: int):
         current_step = self.trainer.global_step * self.hparams.noam_step_factor
         min_inv_sqrt = min(1/math.sqrt(current_step+1), current_step * self.hparams.noam_opt_warmup_steps ** (-1.5))
-        current_lr = 2 * min_inv_sqrt / math.sqrt(self.hparams.hidden_dim)
+        current_lr = min_inv_sqrt / math.sqrt(self.hparams.hidden_dim)
         return current_lr
 
     def configure_optimizers(self):
