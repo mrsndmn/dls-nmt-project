@@ -120,7 +120,8 @@ class TransformerLightningModule(pl.LightningModule):
         self.logger.experiment.add_text("translate_target", target_str)
 
         calculated_bleu = corpus_bleu(references, generated)
-        self.log("valid_bleu", calculated_bleu * 100)
+        print("calculated_bleu", calculated_bleu * 100)
+        self.log("valid_bleu", calculated_bleu * 100, prog_bar=True)
         return
 
     @staticmethod
