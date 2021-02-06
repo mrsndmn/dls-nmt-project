@@ -65,36 +65,38 @@ class PrunedEncoderTransformerLightningModule(TransformerLightningModule):
         super_validation_step_outputs = super(PrunedEncoderTransformerLightningModule, self).validation_step(batch, batch_idx)
         encoder_blocks_mhas = self.get_encoder_mha()
 
-        encoders_mha_l0_penalties = []
+        p_opens = []
         for i, encoder_mha in enumerate(encoder_blocks_mhas):
-            encoder_mha_l0_penalty = encoder_mha.hard_concrete_gate.l0_penalty
-            encoders_mha_l0_penalties.append(encoder_mha_l0_penalty.unsqueeze(0))
+            # print(f"encoder_mha.hard_concrete_gate.log_a {i}", encoder_mha.hard_concrete_gate.log_a)
+            p_open = encoder_mha.hard_concrete_gate.get_p_open()
+            p_opens.append(p_open.unsqueeze(0))
 
         # num_blocks x num_heads
-        encoders_mha_l0_penalties = torch.cat(encoders_mha_l0_penalties, dim=0)
-        return super_validation_step_outputs, encoders_mha_l0_penalties
+        p_opens = torch.cat(p_opens, dim=0)
+        return super_validation_step_outputs, p_opens
 
     def validation_epoch_end(self, validation_step_outputs):
         validation_step_outputs_super = []
-        encoders_mha_l0_penalties = []
+        p_opens = []
         for x in validation_step_outputs:
             validation_step_outputs_super.append(x[0])
-            encoders_mha_l0_penalties.append(x[1].unsqueeze(0))
+            p_opens.append(x[1].unsqueeze(0))
 
         super(PrunedEncoderTransformerLightningModule, self).validation_epoch_end(validation_step_outputs_super)
 
-        encoders_mha_l0_penalties = torch.cat(encoders_mha_l0_penalties, dim=0)
+        p_opens = torch.cat(p_opens, dim=0)
 
         # valid_steps x num_blocks x num_heads
-        encoders_mha_l0_penalties = encoders_mha_l0_penalties.mean(dim=0)
-        encoders_mha_l0_penalties.unsqueeze_(0)
+        p_opens = p_opens.mean(dim=0)
+        p_opens.unsqueeze_(0)
 
         # 1, num_blocks x num_heads
-        encoders_mha_l0_penalties = encoders_mha_l0_penalties.detach().cpu()
-        encoders_mha_l0_penalties = torch.repeat_interleave(encoders_mha_l0_penalties, 100, dim=1)
-        encoders_mha_l0_penalties = torch.repeat_interleave(encoders_mha_l0_penalties, 100, dim=2)
+        p_opens = p_opens.detach().cpu()
+        # print("p_opens", p_opens)
+        p_opens = torch.repeat_interleave(p_opens, 100, dim=1)
+        p_opens = torch.repeat_interleave(p_opens, 100, dim=2)
 
-        self.logger.experiment.add_image('encoders_attentions', encoders_mha_l0_penalties, self.valid_img_step)
+        self.logger.experiment.add_image('encoders_attentions', p_opens, self.valid_img_step)
         self.valid_img_step += 1
 
         return

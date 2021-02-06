@@ -31,8 +31,15 @@ class HardConcreteGate(nn.Module):
 
         self.l0_penalty_lambda = l0_penalty_lambda
         self.l2_penalty_lambda = l2_penalty_lambda
+        self.p_open = self.get_p_open()
 
         return
+
+    def get_p_open(self):
+        p_open = self.sigmoid(self.log_a - self.temperature * torch.log(- self.adjust_range[0] / self.adjust_range[1]) )
+        p_open = torch.clip(p_open, min=self.eps, max=1-self.eps)
+        return p_open
+
 
     # batch_size, seq_len, num_heads * v_dim
     def forward(self, inputs:torch.Tensor) -> torch.Tensor:
@@ -51,8 +58,8 @@ class HardConcreteGate(nn.Module):
         concrete = torch.clip(concrete, min=0, max=1)
 
         if self.training and (self.l0_penalty_lambda > 0 or self.l2_penalty_lambda > 0):
-            p_open = self.sigmoid(self.log_a - self.temperature * torch.log(- self.adjust_range[0] / self.adjust_range[1]) )
-            p_open = torch.clip(p_open, min=self.eps, max=1-self.eps)
+            p_open = self.get_p_open()
+            self.p_open = p_open
 
             if self.l0_penalty_lambda > 0:
                 self.l0_penalty = self.l0_penalty_lambda * p_open
@@ -62,5 +69,8 @@ class HardConcreteGate(nn.Module):
 
         repeat_cnt = inputs.size(-1) // self.log_a.size(0)
         concrete = torch.repeat_interleave(concrete, repeat_cnt, dim=-1)
+
+        # print("inputs.shape", inputs.shape)
+        # print("concrete.shape", concrete.shape)
 
         return inputs * concrete
