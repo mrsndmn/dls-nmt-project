@@ -24,13 +24,9 @@ class HardConcreteGate(nn.Module):
         self.register_buffer("adjust_range", torch.Tensor(adjust_range))
 
         self.register_buffer("random_buffer", torch.rand(num_heads), persistent=False)
-        self.l0_penalty = torch.zeros_like(self.log_a)
-        self.l2_penalty = torch.zeros_like(self.log_a)
 
         self.sigmoid = nn.Sigmoid()
 
-        self.l0_penalty_lambda = l0_penalty_lambda
-        self.l2_penalty_lambda = l2_penalty_lambda
         self.p_open = self.get_p_open()
 
         return
@@ -57,15 +53,7 @@ class HardConcreteGate(nn.Module):
         concrete = concrete * (self.adjust_range[1] - self.adjust_range[0]) + self.adjust_range[0]
         concrete = torch.clip(concrete, min=0, max=1)
 
-        if self.training and (self.l0_penalty_lambda > 0 or self.l2_penalty_lambda > 0):
-            p_open = self.get_p_open()
-            self.p_open = p_open
-
-            if self.l0_penalty_lambda > 0:
-                self.l0_penalty = self.l0_penalty_lambda * p_open
-
-            if self.l2_penalty_lambda > 0:
-                self.l2_penalty = self.l2_penalty_lambda * p_open * torch.pow(inputs, 2).sum()
+                # self.l2_penalty = self.l2_penalty_lambda * p_open * torch.pow(inputs, 2).sum()
 
         repeat_cnt = inputs.size(-1) // self.log_a.size(0)
         concrete = torch.repeat_interleave(concrete, repeat_cnt, dim=-1)

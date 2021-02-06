@@ -27,6 +27,7 @@ class TransformerLightningModule(pl.LightningModule):
         scheduler: str="noam",
         scheduler_patience:int=10,
         noam_step_factor: int = 1,
+        encoder_with_hard_concrete_gate=False,
     ):
 
         super(TransformerLightningModule, self).__init__()
@@ -36,7 +37,9 @@ class TransformerLightningModule(pl.LightningModule):
 
         self.transformer = transformer.Transformer(src_vocab_size, trg_vocab_size, hidden_dim,
                                                    num_blocks=num_blocks,
-                                                   key_query_value_dim=key_query_value_dim)
+                                                   key_query_value_dim=key_query_value_dim,
+                                                   encoder_with_hard_concrete_gate=encoder_with_hard_concrete_gate,
+                                                   )
 
         self.criterion = transformer.LabelSmoothing(trg_vocab_size, padding_token_idx=padding_token_idx, smoothing=smoothing)
 
@@ -139,7 +142,7 @@ class TransformerLightningModule(pl.LightningModule):
         parser.add_argument("--scheduler", default="noam")
         parser.add_argument("--scheduler_patience", default=10)
         parser.add_argument("--noam_step_factor", default=1, type=int)
-
+        parser.add_argument("--encoder_with_hard_concrete_gate", default=False, type=bool)
 
         # parser.add_argument("--num_workers", type=int, default=8)
         # parser.add_argument("--data_dir", type=str, default=".")

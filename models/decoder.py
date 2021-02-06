@@ -6,10 +6,10 @@ from models.attention import AddAndNorm, MultiHeadAttention, SimpleMultiHeadAtte
 from typing import List
 
 class TransformerEncoderDecoderConnectionBlock(nn.Module):
-    def __init__(self, hidden_dim: int, key_query_value_dim: int = 64, num_attention_heads=8):
+    def __init__(self, hidden_dim: int, key_query_value_dim: int = 64, num_attention_heads=8, with_hard_concrete_gate=False):
         super(TransformerEncoderDecoderConnectionBlock, self).__init__()
 
-        self.multihead_attention = MultiHeadAttention(hidden_dim, key_and_query_dim=key_query_value_dim, value_dim=key_query_value_dim, num_heads=num_attention_heads)
+        self.multihead_attention = MultiHeadAttention(hidden_dim, key_and_query_dim=key_query_value_dim, value_dim=key_query_value_dim, num_heads=num_attention_heads, with_hard_concrete_gate=with_hard_concrete_gate)
         self.norm = nn.LayerNorm(hidden_dim)
         return
 
@@ -22,11 +22,11 @@ class TransformerDecoderBlock(nn.Module):
     param: hidden_dim - embedding hidden dim
     '''
 
-    def __init__(self, hidden_dim: int, key_query_value_dim: int = 64, num_heads=8, feed_forward_hidden_dim: int = 2048):
+    def __init__(self, hidden_dim: int, key_query_value_dim: int = 64, num_heads=8, feed_forward_hidden_dim: int = 2048, with_hard_concrete_gate=False):
         super(TransformerDecoderBlock, self).__init__()
 
         masked_multihead_attention = SimpleMultiHeadAttention(
-            hidden_dim, key_query_value_dim=key_query_value_dim, num_heads=num_heads)
+            hidden_dim, key_query_value_dim=key_query_value_dim, num_heads=num_heads, with_hard_concrete_gate=with_hard_concrete_gate)
 
         # todo move the same block in encode to separate class
         feed_forward = nn.Sequential(

@@ -40,7 +40,7 @@ class NormedEmbeddings(nn.Module):
         return self.emb(x) * self.hidden_dim_sqrt
 
 class Transformer(nn.Module):
-    def __init__(self, src_vocab_size: int, trg_vocab_size: int, hidden_dim: int, num_blocks: int = 6, key_query_value_dim=64, num_heads: int = None):
+    def __init__(self, src_vocab_size: int, trg_vocab_size: int, hidden_dim: int, num_blocks: int = 6, key_query_value_dim=64, num_heads: int = None, encoder_with_hard_concrete_gate=False):
         super(Transformer, self).__init__()
 
         self.trg_vocab_size = trg_vocab_size
@@ -65,7 +65,7 @@ class Transformer(nn.Module):
         self.num_blocks = num_blocks
 
         encoder_blocks = [TransformerEncoderBlock(
-            hidden_dim, key_query_value_dim=key_query_value_dim, num_heads=num_heads) for _ in range(num_blocks)]
+            hidden_dim, key_query_value_dim=key_query_value_dim, num_heads=num_heads, with_hard_concrete_gate=encoder_with_hard_concrete_gate) for _ in range(num_blocks)]
         decoder_blocks = [TransformerDecoderBlock(
             hidden_dim, key_query_value_dim=key_query_value_dim, num_heads=num_heads) for _ in range(num_blocks)]
 

@@ -62,8 +62,6 @@ class MultiHeadAttention(nn.Module):
         if hidden_dim // num_heads != key_and_query_dim:
             raise ValueError(f"hidden_dim must be equal to num_heads * key_and_query_dim. Got: hidden_dim={hidden_dim} // num_heads={num_heads} != key_and_query_dim={key_and_query_dim}")
 
-        self.with_hard_concrete_gate = with_hard_concrete_gate
-
         attentions = []
         concrete_gates = []
         for _ in range(num_heads):
@@ -88,7 +86,7 @@ class MultiHeadAttention(nn.Module):
             attention_output = attention(q_hidden_inputs, k_hidden_inputs, v_hidden_inputs, mask=mask)
             attention_outputs.append(attention_output)
 
-        if self.with_hard_concrete_gate:
+        if len(self.hard_concrete_gates) > 0:
             for i, hcg in enumerate(self.hard_concrete_gates):
                 attention_outputs[i] = hcg(attention_outputs[i])
 
@@ -103,8 +101,8 @@ class SimpleMultiHeadAttention(MultiHeadAttention):
     The same as MultiHeadAttention but all the query key and value inputs are the same
     '''
 
-    def __init__(self, hidden_dim: int, key_query_value_dim: int = 64, num_heads=8):
-        super(SimpleMultiHeadAttention, self).__init__(hidden_dim, key_and_query_dim=key_query_value_dim, value_dim=key_query_value_dim, num_heads=num_heads)
+    def __init__(self, hidden_dim: int, key_query_value_dim: int = 64, num_heads=8, with_hard_concrete_gate=False):
+        super(SimpleMultiHeadAttention, self).__init__(hidden_dim, key_and_query_dim=key_query_value_dim, value_dim=key_query_value_dim, num_heads=num_heads, with_hard_concrete_gate=with_hard_concrete_gate)
         return
 
     def forward(self, hidden_inputs, mask=None):

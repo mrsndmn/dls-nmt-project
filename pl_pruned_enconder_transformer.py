@@ -20,6 +20,7 @@ class PrunedEncoderTransformerLightningModule(TransformerLightningModule):
         **kwargs,
     ):
 
+        kwargs['encoder_with_hard_concrete_gate'] = True
         super(PrunedEncoderTransformerLightningModule, self).__init__(*args, **kwargs)
 
         # enable hard concrete gates in encoder self attention
@@ -40,9 +41,11 @@ class PrunedEncoderTransformerLightningModule(TransformerLightningModule):
         # print('hcg_l0_penalty_lambda', hcg_l0_penalty_lambda)
 
         for encoder_mha in encoder_blocks_mhas:
-            encoder_mha.with_hard_concrete_gate = True
+            if len(encoder_mha.hard_concrete_gates) > 0:
+                continue
+
             for i in range(len(encoder_mha.attention_heads)):
-                encoder_mha.hard_concrete_gates.append( hard_concrete_gate.HardConcreteGate(1, l0_penalty_lambda=1) )
+                encoder_mha.hard_concrete_gates.append( hard_concrete_gate.HardConcreteGate(1) )
 
 
     def get_encoder_mha(self) -> attention.SimpleMultiHeadAttention:
@@ -56,18 +59,17 @@ class PrunedEncoderTransformerLightningModule(TransformerLightningModule):
 
         encoder_blocks_mhas = self.get_encoder_mha()
         for i, encoder_mha in enumerate(encoder_blocks_mhas):
-            l0_losses = []
+            hcg_p_opens = []
             for hcg in encoder_mha.hard_concrete_gates:
-                # print('hcg.parameters():', [p for p in hcg.parameters()])
-                encoder_mha_l0_penalty = hcg.l0_penalty.unsqueeze(0)
-                # print(encoder_mha_l0_penalty)
-                assert encoder_mha_l0_penalty.requires_grad
-                l0_losses.append(encoder_mha_l0_penalty)
 
-            l0_loss_t = torch.cat(l0_losses, dim=0)
-            # print('l0_loss_t', l0_loss_t)
+                hcg_p_open = hcg.get_p_open()
+                hcg_p_open = hcg_p_open.unsqueeze(0)
+                assert hcg_p_open.requires_grad, 'encoder_mha_l0_penalty.requires_grad'
+                hcg_p_opens.append(hcg_p_open)
+
+            l0_loss_t = torch.cat(hcg_p_opens, dim=0)
             l0_loss_t = l0_loss_t.mean()
-            self.log(f"{i}_encoder_mha_l0_sum_penalty", l0_loss_t.detach().cpu())
+            self.log(f"{i}_encoder_mha_l0_mean_p_opens", l0_loss_t.detach().cpu())
             loss += l0_loss_t * self.hcg_l0_penalty_lambda
 
         return loss
@@ -76,6 +78,8 @@ class PrunedEncoderTransformerLightningModule(TransformerLightningModule):
         super_validation_step_outputs = super(PrunedEncoderTransformerLightningModule, self).validation_step(batch, batch_idx)
         encoder_blocks_mhas = self.get_encoder_mha()
 
+        # todo вообще говоря, не обязательно их собирать в один тензор, потому что они будут одинаковые, потмоу что
+        # на валидации параметры модели не меняюстя..
         p_opens = []
         for i, encoder_mha in enumerate(encoder_blocks_mhas):
             # print(f"encoder_mha.hard_concrete_gate.log_a {i}", encoder_mha.hard_concrete_gate.log_a)
@@ -124,6 +128,7 @@ def cli_main(args=None):
     parser = ArgumentParser()
     parser.add_argument("--checkpoint", required=True, type=str)
     parser.add_argument("--hcg_l0_penalty_lambda", required=True, type=float)
+    parser.add_argument("--strict", default=False, type=bool)
 
     # todo support other datamodules
 
@@ -142,7 +147,7 @@ def cli_main(args=None):
     args.src_vocab_size = dm.src_bpe.vocab_size()
     args.trg_vocab_size = dm.trg_bpe.vocab_size()
 
-    transformer_model = PrunedEncoderTransformerLightningModule.load_from_checkpoint(args.checkpoint, strict=False)
+    transformer_model = PrunedEncoderTransformerLightningModule.load_from_checkpoint(args.checkpoint, strict=args.strict)
     transformer_model.trg_bpe = trg_bpe=dm.trg_bpe
     transformer_model.hparams.lr = args.lr
     transformer_model.hparams.scheduler=args.scheduler
@@ -150,7 +155,9 @@ def cli_main(args=None):
     transformer_model.hparams.noam_step_factor=args.noam_step_factor
 
     transformer_model.hcg_l0_penalty_lambda = args.hcg_l0_penalty_lambda
-    transformer_model.setup_encoder_hcg()
+    if args.encoder_with_hard_concrete_gate:
+        print("seetting up mha")
+        transformer_model.setup_encoder_hcg()
     print("transformer_model.hparams", transformer_model.hparams, "hcg_l0_penalty_lambda", transformer_model.hcg_l0_penalty_lambda)
 
     trainer = pl.Trainer.from_argparse_args(args)
