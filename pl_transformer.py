@@ -98,9 +98,9 @@ class TransformerLightningModule(pl.LightningModule):
 
         assert len(translation_decoded) == len(target_decoded)
 
-        # print("translation_decoded size", len(translation_decoded))
-        # print("translation_decoded", translation_decoded[:10])
-        # print("target_decoded", target_decoded[:10])
+        print("translation_decoded size", len(translation_decoded))
+        print("translation_decoded", translation_decoded[:10])
+        print("target_decoded", target_decoded[:10])
 
         return translation_decoded, target_decoded
 
