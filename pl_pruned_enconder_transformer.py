@@ -83,6 +83,10 @@ def cli_main(args=None):
 
     transformer_model = PrunedEncoderTransformerLightningModule.load_from_checkpoint(args.checkpoint, strict=False)
     transformer_model.trg_bpe = trg_bpe=dm.trg_bpe
+    transformer_model.lr = args.lr
+    transformer_model.scheduler=args.scheduler
+    transformer_model.scheduler_patience=args.scheduler_patience
+    transformer_model.noam_step_factor=args.noam_step_factor
 
     trainer = pl.Trainer.from_argparse_args(args)
     trainer.fit(transformer_model, datamodule=dm)
