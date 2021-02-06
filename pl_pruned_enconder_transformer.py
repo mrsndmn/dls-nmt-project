@@ -87,6 +87,7 @@ def cli_main(args=None):
     transformer_model.hparams.scheduler=args.scheduler
     transformer_model.hparams.scheduler_patience=args.scheduler_patience
     transformer_model.hparams.noam_step_factor=args.noam_step_factor
+    print("transformer_model.hparams", transformer_model.hparams)
 
     trainer = pl.Trainer.from_argparse_args(args)
     trainer.fit(transformer_model, datamodule=dm)
