@@ -47,8 +47,8 @@ class PrunedEncoderTransformerLightningModule(TransformerLightningModule):
 
         encoder_blocks_mhas = self.get_encoder_mha()
         for i, encoder_mha in enumerate(encoder_blocks_mhas):
-            encoder_mha_l0_penalty = encoder_mha.hard_concrete_gate.l0_penalty
-            self.log(f"{i}_encoder_mha_l0_penalty", encoder_mha_l0_penalty.detach().cpu())
+            encoder_mha_l0_penalty = encoder_mha.hard_concrete_gate.l0_penalty.sum()
+            self.log(f"{i}_encoder_mha_l0_sum_penalty", encoder_mha_l0_penalty.detach().cpu())
 
             # print("encoder_mha_l0_penalty", encoder_mha_l0_penalty)
             loss += encoder_mha_l0_penalty.sum()
