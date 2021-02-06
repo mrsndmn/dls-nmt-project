@@ -8,8 +8,9 @@ import pytest
 
 def test_hard_concrete_gate():
 
-    hcg_shape = (1, 8, 1);
-    hcg = HardConcreteGate(hcg_shape, log_a=0.0)
+    num_heads = 8
+    hcg_shape = (2, 3, num_heads * 3);
+    hcg = HardConcreteGate(num_heads, log_a=0.0)
 
     hcg_input = torch.rand(hcg_shape)
     hcg_out = hcg.forward(hcg_input)
@@ -18,8 +19,9 @@ def test_hard_concrete_gate():
 
     learned_params_count = sum( p.numel() for p in hcg.parameters() if p.requires_grad)
     hgc_state = hcg.state_dict()
+    print(hgc_state)
     params_and_buffers_elems_count = sum( hgc_state[state].numel() for state in hgc_state )
 
-    assert learned_params_count == 1
-    assert params_and_buffers_elems_count == 4 # log_a temp adjust_range_start adjust_range_end
+    assert learned_params_count == num_heads
+    assert params_and_buffers_elems_count == num_heads + 3 # log_a.numel() + len([temp, adjust_range_start, adjust_range_end])
 

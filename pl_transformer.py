@@ -98,9 +98,9 @@ class TransformerLightningModule(pl.LightningModule):
 
         assert len(translation_decoded) == len(target_decoded)
 
-        print("translation_decoded size", len(translation_decoded))
-        print("translation_decoded", translation_decoded[:10])
-        print("target_decoded", target_decoded[:10])
+        # print("translation_decoded size", len(translation_decoded))
+        # print("translation_decoded", translation_decoded[:10])
+        # print("target_decoded", target_decoded[:10])
 
         return translation_decoded, target_decoded
 
@@ -120,7 +120,7 @@ class TransformerLightningModule(pl.LightningModule):
         self.logger.experiment.add_text("translate_target", target_str)
 
         calculated_bleu = corpus_bleu(references, generated)
-        print("calculated_bleu", calculated_bleu * 100)
+        # print("calculated_bleu", calculated_bleu * 100)
         self.log("valid_bleu", calculated_bleu * 100, prog_bar=True)
         return
 

@@ -3,6 +3,8 @@ import torch.nn as nn
 
 import math
 
+from models.hard_concrete_gate import HardConcreteGate
+
 class Attention(nn.Module):
     def __init__(self, hidden_dim: int, key_and_query_dim: int = 64, value_dim: int = 64):
         super(Attention, self).__init__()
@@ -54,7 +56,7 @@ class Attention(nn.Module):
 
 
 class MultiHeadAttention(nn.Module):
-    def __init__(self, hidden_dim: int, key_and_query_dim: int = 64, value_dim: int = 64, num_heads=8):
+    def __init__(self, hidden_dim: int, key_and_query_dim: int = 64, value_dim: int = 64, num_heads=8, with_hard_concrete_gate=False, hcg_l0_penalty_lambda=0.0):
         super(MultiHeadAttention, self).__init__()
 
         if hidden_dim // num_heads != key_and_query_dim:
@@ -64,13 +66,22 @@ class MultiHeadAttention(nn.Module):
                       for _ in range(num_heads)]
         self.attention_heads = nn.ModuleList(attentions)
 
+        self.hard_concrete_gate = HardConcreteGate(num_heads, l0_penalty_lambda=hcg_l0_penalty_lambda) if with_hard_concrete_gate else None
+
         self.heads_weights = nn.Linear(num_heads * value_dim, hidden_dim)
+
+    @property
+    def num_heads(self):
+        return len(self.attention_heads)
 
     def forward(self, q_hidden_inputs: torch.Tensor, k_hidden_inputs: torch.Tensor, v_hidden_inputs: torch.Tensor, mask=None):
 
         # bs, seq_len, v_dim * num_heads
         attention_outputs = torch.cat([attention(
             q_hidden_inputs, k_hidden_inputs, v_hidden_inputs, mask=mask) for attention in self.attention_heads], dim=-1)
+
+        if self.hard_concrete_gate is not None:
+            attention_outputs = self.hard_concrete_gate(attention_outputs)
 
         return self.heads_weights(attention_outputs) # bs, seq_len, hidd_dim
 

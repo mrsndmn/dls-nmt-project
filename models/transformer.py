@@ -159,7 +159,7 @@ class Transformer(nn.Module):
             trg_tokens_probabilities = self.generator.forward(last_current_token_decoded)
             _, next_tokens = torch.max(trg_tokens_probabilities, dim=1)
 
-            print("next_token", next_tokens)
+            # print("next_token", next_tokens)
 
             trg_tokens[:, i] = next_tokens
 

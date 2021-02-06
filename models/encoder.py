@@ -22,8 +22,8 @@ class TransformerEncoderBlock(nn.Module):
             nn.Linear(feed_forward_hidden_dim, hidden_dim),
         )
 
-        self.self_attention = AddAndNorm(hidden_dim, multihead_attention)
-        self.feed_forward = AddAndNorm(hidden_dim, feed_forward)
+        self.self_attention: AddAndNorm = AddAndNorm(hidden_dim, multihead_attention)
+        self.feed_forward: AddAndNorm = AddAndNorm(hidden_dim, feed_forward)
 
         return
 
@@ -31,6 +31,9 @@ class TransformerEncoderBlock(nn.Module):
         outputs = self.self_attention(inputs, mask=src_mask)
         outputs = self.feed_forward(outputs)
         return outputs
+
+    def get_multihead_self_attention(self):
+        return self.self_attention.sublayer
 
 
 class EncoderBlocksSequential(nn.Module):
@@ -44,3 +47,6 @@ class EncoderBlocksSequential(nn.Module):
             encoder_output = encoder_block(encoder_output, src_mask=src_mask)
 
         return encoder_output
+
+    def get_multihead_self_attention(self):
+        return [ enc_block.get_multihead_self_attention() for enc_block in self.encoder_blocks ]

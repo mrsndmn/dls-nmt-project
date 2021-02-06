@@ -7,7 +7,7 @@ import math
 
 class HardConcreteGate(nn.Module):
     def __init__(self,
-                 shape,
+                 num_heads,
                  log_a=0.0,
                  temperature=0.5,
                  adjust_range=(-0.1, 1.1),
@@ -17,13 +17,13 @@ class HardConcreteGate(nn.Module):
                  ):
         super(HardConcreteGate, self).__init__()
 
-        self.log_a = nn.Parameter(torch.Tensor([log_a]))
+        self.log_a = nn.Parameter(torch.full((num_heads,), log_a))
         self.eps = eps
 
         self.register_buffer("temperature", torch.Tensor([temperature]))
         self.register_buffer("adjust_range", torch.Tensor(adjust_range))
 
-        self.register_buffer("random_buffer", torch.rand(shape), persistent=False)
+        self.register_buffer("random_buffer", torch.rand(num_heads), persistent=False)
         self.l0_penalty = torch.zeros(1)
         self.l2_penalty = torch.zeros(1)
 
@@ -34,8 +34,10 @@ class HardConcreteGate(nn.Module):
 
         return
 
-
+    # batch_size, seq_len, num_heads * v_dim
     def forward(self, inputs:torch.Tensor) -> torch.Tensor:
+
+        assert inputs.size(-1) % self.log_a.size(0) == 0
 
         if self.training:
             torch.rand(self.random_buffer.size(), out=self.random_buffer) # avoid extra allocations
@@ -52,11 +54,13 @@ class HardConcreteGate(nn.Module):
             p_open = self.sigmoid(self.log_a - self.temperature * torch.log(- self.adjust_range[0] / self.adjust_range[1]) )
             p_open = torch.clip(p_open, min=self.eps, max=1-self.eps)
 
-
             if self.l0_penalty_lambda > 0:
                 self.l0_penalty = self.l0_penalty_lambda * p_open
 
             if self.l2_penalty_lambda > 0:
                 self.l2_penalty = self.l2_penalty_lambda * p_open * torch.pow(inputs, 2).sum()
+
+        repeat_cnt = inputs.size(-1) // self.log_a.size(0)
+        concrete = torch.repeat_interleave(concrete, repeat_cnt, dim=-1)
 
         return inputs * concrete
