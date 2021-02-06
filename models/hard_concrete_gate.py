@@ -40,17 +40,17 @@ class HardConcreteGate(nn.Module):
         p_open = torch.clip(p_open, min=self.eps, max=1-self.eps)
         return p_open
 
-
     # batch_size, seq_len, num_heads * v_dim
     def forward(self, inputs:torch.Tensor) -> torch.Tensor:
-
         assert inputs.size(-1) % self.log_a.size(0) == 0
 
         if self.training:
             torch.rand(self.random_buffer.size(), out=self.random_buffer) # avoid extra allocations
+            # print('self.random_buffer', self.random_buffer)
 
             one_minus_rand_log = (1 - self.random_buffer).log_()
-            concrete = self.sigmoid((self.log_a + self.random_buffer.log() + one_minus_rand_log) / self.temperature)
+            # print(self.log_a, one_minus_rand_log, self.random_buffer.log())
+            concrete = self.sigmoid((self.random_buffer.log() - one_minus_rand_log + self.log_a) / self.temperature)
         else:
             concrete = self.sigmoid(self.log_a)
 
@@ -70,7 +70,6 @@ class HardConcreteGate(nn.Module):
         repeat_cnt = inputs.size(-1) // self.log_a.size(0)
         concrete = torch.repeat_interleave(concrete, repeat_cnt, dim=-1)
 
-        # print("inputs.shape", inputs.shape)
-        # print("concrete.shape", concrete.shape)
+        result = inputs * concrete
 
-        return inputs * concrete
+        return result

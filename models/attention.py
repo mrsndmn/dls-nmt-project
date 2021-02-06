@@ -62,11 +62,18 @@ class MultiHeadAttention(nn.Module):
         if hidden_dim // num_heads != key_and_query_dim:
             raise ValueError(f"hidden_dim must be equal to num_heads * key_and_query_dim. Got: hidden_dim={hidden_dim} // num_heads={num_heads} != key_and_query_dim={key_and_query_dim}")
 
-        attentions = [Attention(hidden_dim, key_and_query_dim=key_and_query_dim, value_dim=value_dim)
-                      for _ in range(num_heads)]
+        self.with_hard_concrete_gate = with_hard_concrete_gate
+
+        attentions = []
+        concrete_gates = []
+        for _ in range(num_heads):
+            attentions.append(Attention(hidden_dim, key_and_query_dim=key_and_query_dim, value_dim=value_dim))
+            if with_hard_concrete_gate:
+                concrete_gates.append( HardConcreteGate(1, l0_penalty_lambda=hcg_l0_penalty_lambda) )
+
         self.attention_heads = nn.ModuleList(attentions)
 
-        self.hard_concrete_gate = HardConcreteGate(num_heads, l0_penalty_lambda=hcg_l0_penalty_lambda) if with_hard_concrete_gate else None
+        self.hard_concrete_gates = nn.ModuleList(concrete_gates)
 
         self.heads_weights = nn.Linear(num_heads * value_dim, hidden_dim)
 
@@ -76,12 +83,17 @@ class MultiHeadAttention(nn.Module):
 
     def forward(self, q_hidden_inputs: torch.Tensor, k_hidden_inputs: torch.Tensor, v_hidden_inputs: torch.Tensor, mask=None):
 
-        # bs, seq_len, v_dim * num_heads
-        attention_outputs = torch.cat([attention(
-            q_hidden_inputs, k_hidden_inputs, v_hidden_inputs, mask=mask) for attention in self.attention_heads], dim=-1)
+        attention_outputs = []
+        for attention in self.attention_heads:
+            attention_output = attention(q_hidden_inputs, k_hidden_inputs, v_hidden_inputs, mask=mask)
+            attention_outputs.append(attention_output)
 
-        if self.hard_concrete_gate is not None:
-            attention_outputs = self.hard_concrete_gate(attention_outputs)
+        if self.with_hard_concrete_gate:
+            for i, hcg in enumerate(self.hard_concrete_gates):
+                attention_outputs[i] = hcg(attention_outputs[i])
+
+        # bs, seq_len, v_dim * num_heads
+        attention_outputs = torch.cat(attention_outputs, dim=-1)
 
         return self.heads_weights(attention_outputs) # bs, seq_len, hidd_dim
 

@@ -37,10 +37,12 @@ class PrunedEncoderTransformerLightningModule(TransformerLightningModule):
         encoder_blocks_mhas = self.get_encoder_mha()
 
         hcg_l0_penalty_lambda = self.hcg_l0_penalty_lambda
-        print('hcg_l0_penalty_lambda', hcg_l0_penalty_lambda)
+        # print('hcg_l0_penalty_lambda', hcg_l0_penalty_lambda)
 
         for encoder_mha in encoder_blocks_mhas:
-            encoder_mha.hard_concrete_gate = hard_concrete_gate.HardConcreteGate(encoder_mha.num_heads, l0_penalty_lambda=hcg_l0_penalty_lambda)
+            encoder_mha.with_hard_concrete_gate = True
+            for i in range(len(encoder_mha.attention_heads)):
+                encoder_mha.hard_concrete_gates.append( hard_concrete_gate.HardConcreteGate(1, l0_penalty_lambda=1) )
 
 
     def get_encoder_mha(self) -> attention.SimpleMultiHeadAttention:
@@ -54,10 +56,19 @@ class PrunedEncoderTransformerLightningModule(TransformerLightningModule):
 
         encoder_blocks_mhas = self.get_encoder_mha()
         for i, encoder_mha in enumerate(encoder_blocks_mhas):
-            encoder_mha_l0_penalty = encoder_mha.hard_concrete_gate.l0_penalty.sum()
-            self.log(f"{i}_encoder_mha_l0_sum_penalty", encoder_mha_l0_penalty.detach().cpu())
+            l0_losses = []
+            for hcg in encoder_mha.hard_concrete_gates:
+                # print('hcg.parameters():', [p for p in hcg.parameters()])
+                encoder_mha_l0_penalty = hcg.l0_penalty.unsqueeze(0)
+                # print(encoder_mha_l0_penalty)
+                assert encoder_mha_l0_penalty.requires_grad
+                l0_losses.append(encoder_mha_l0_penalty)
 
-            loss += encoder_mha_l0_penalty
+            l0_loss_t = torch.cat(l0_losses, dim=0)
+            # print('l0_loss_t', l0_loss_t)
+            l0_loss_t = l0_loss_t.mean()
+            self.log(f"{i}_encoder_mha_l0_sum_penalty", l0_loss_t.detach().cpu())
+            loss += l0_loss_t * self.hcg_l0_penalty_lambda
 
         return loss
 
@@ -68,8 +79,10 @@ class PrunedEncoderTransformerLightningModule(TransformerLightningModule):
         p_opens = []
         for i, encoder_mha in enumerate(encoder_blocks_mhas):
             # print(f"encoder_mha.hard_concrete_gate.log_a {i}", encoder_mha.hard_concrete_gate.log_a)
-            p_open = encoder_mha.hard_concrete_gate.get_p_open()
-            p_opens.append(p_open.unsqueeze(0))
+            p_open = []
+            for hcg in encoder_mha.hard_concrete_gates:
+                p_open.append(hcg.get_p_open())
+            p_opens.append(torch.cat(p_open, dim=0).unsqueeze(0))
 
         # num_blocks x num_heads
         p_opens = torch.cat(p_opens, dim=0)
@@ -85,6 +98,7 @@ class PrunedEncoderTransformerLightningModule(TransformerLightningModule):
         super(PrunedEncoderTransformerLightningModule, self).validation_epoch_end(validation_step_outputs_super)
 
         p_opens = torch.cat(p_opens, dim=0)
+        print('p_opens', p_opens[:2])
 
         # valid_steps x num_blocks x num_heads
         p_opens = p_opens.mean(dim=0)
