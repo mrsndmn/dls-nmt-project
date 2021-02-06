@@ -24,8 +24,8 @@ class HardConcreteGate(nn.Module):
         self.register_buffer("adjust_range", torch.Tensor(adjust_range))
 
         self.register_buffer("random_buffer", torch.rand(num_heads), persistent=False)
-        self.l0_penalty = torch.zeros(1)
-        self.l2_penalty = torch.zeros(1)
+        self.l0_penalty = torch.zeros_like(self.log_a)
+        self.l2_penalty = torch.zeros_like(self.log_a)
 
         self.sigmoid = nn.Sigmoid()
 
