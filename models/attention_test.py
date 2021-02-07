@@ -20,14 +20,14 @@ def test_attention_forward():
 
 
         attention_output = att.forward(q_hidden_inputs=q_attention_input, k_hidden_inputs=kv_attention_input, v_hidden_inputs=kv_attention_input, mask=None)
-        assert attention_output.size() == torch.Size((batch_size, seq_len, v_dim))
+        assert attention_output.size() == torch.Size((batch_size, q_seq_len, v_dim))
         assert attention_output.sum().item() != 0
 
-        mask = torch.ones((batch_size, seq_len, seq_len))
+        mask = torch.ones((batch_size, q_seq_len, kv_seq_len))
         mask[:, :, -1] = 0
 
         attention_output = att.forward(q_hidden_inputs=q_attention_input, k_hidden_inputs=kv_attention_input, v_hidden_inputs=kv_attention_input, mask=mask, save_attention=True)
-        assert attention_output.size() == torch.Size((batch_size, seq_len, v_dim))
+        assert attention_output.size() == torch.Size((batch_size, q_seq_len, v_dim))
         assert att.attention[:, :, -1].sum().item() == 0
 
 
