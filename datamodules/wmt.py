@@ -70,6 +70,7 @@ class WMTDataModule(pl.LightningDataModule):
                  trg_vocab_size=10000,
                  max_seq_len_tokens=100,
                  min_seq_len_tokens=10,
+                 valid_length = 3000,
                  ):
         super(WMTDataModule, self).__init__()
 
@@ -99,6 +100,8 @@ class WMTDataModule(pl.LightningDataModule):
         self.force = force
         self.max_seq_len_tokens = max_seq_len_tokens
         self.min_seq_len_tokens = min_seq_len_tokens
+
+        self.valid_length = valid_length
 
         return
 
@@ -231,6 +234,11 @@ class WMTDataModule(pl.LightningDataModule):
 
         self.wmt = TextTranslationDataset(src_data, trg_data)
 
+        train_len = len(self.wmt) - self.valid_length
+        wmt_train, wmt_valid = torch.utils.data.random_split(self.wmt, [train_len, self.valid_length])
+        self.wmt_train = wmt_train
+        self.wmt_valid = wmt_valid
+
         return
 
     def collate_fn(self, batch: typing.List):
@@ -273,8 +281,8 @@ class WMTDataModule(pl.LightningDataModule):
         return TransformerBatchedSequencesWithMasks(src_padded, src_mask, trg_padded, trg_y_padded, trg_mask, num_target_tokens)
 
     def train_dataloader(self) -> DataLoader:
-        return DataLoader(self.wmt, batch_size=self.batch_size, collate_fn=self.collate_fn, shuffle=False, num_workers=1)
+        return DataLoader(self.wmt_train, batch_size=self.batch_size, collate_fn=self.collate_fn, shuffle=False, num_workers=1)
 
     def val_dataloader(self) -> DataLoader:
-        return DataLoader(self.wmt, batch_size=self.val_batch_size, collate_fn=self.collate_fn, shuffle=False, num_workers=1)
+        return DataLoader(self.wmt_valid, batch_size=self.val_batch_size, collate_fn=self.collate_fn, shuffle=False, num_workers=1)
 
