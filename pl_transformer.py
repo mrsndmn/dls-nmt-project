@@ -27,6 +27,7 @@ class TransformerLightningModule(pl.LightningModule):
         scheduler: str="noam",
         scheduler_patience:int=10,
         noam_step_factor: int = 1,
+        noam_scaler: float = 1.,
         encoder_with_hard_concrete_gate=False,
     ):
 
