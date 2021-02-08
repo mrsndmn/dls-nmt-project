@@ -32,7 +32,7 @@ class TransformerLightningModule(pl.LightningModule):
 
         super(TransformerLightningModule, self).__init__()
 
-        self.save_hyperparameters("src_vocab_size", "trg_vocab_size", "hidden_dim", "num_blocks", "key_query_value_dim", "padding_token_idx", "smoothing", "lr", "noam_opt_warmup_steps", "scheduler", "noam_step_factor")
+        self.save_hyperparameters("src_vocab_size", "trg_vocab_size", "hidden_dim", "num_blocks", "key_query_value_dim", "padding_token_idx", "smoothing", "lr", "noam_opt_warmup_steps", "scheduler", "noam_step_factor", 'noam_scaler')
         print(self.hparams)
 
         self.transformer = transformer.Transformer(src_vocab_size, trg_vocab_size, hidden_dim,
@@ -142,6 +142,7 @@ class TransformerLightningModule(pl.LightningModule):
         parser.add_argument("--scheduler", default="noam")
         parser.add_argument("--scheduler_patience", default=10)
         parser.add_argument("--noam_step_factor", default=1, type=int)
+        parser.add_argument("--noam_scaler", default=1, type=int)
         parser.add_argument("--encoder_with_hard_concrete_gate", default=False, type=bool)
 
         # parser.add_argument("--num_workers", type=int, default=8)
@@ -153,6 +154,7 @@ class TransformerLightningModule(pl.LightningModule):
         current_step = self.trainer.global_step * self.hparams.noam_step_factor
         min_inv_sqrt = min(1/math.sqrt(current_step+1), current_step * self.hparams.noam_opt_warmup_steps ** (-1.5))
         current_lr = min_inv_sqrt / math.sqrt(self.hparams.hidden_dim)
+        current_lr *= self.hparams.noam_scaler
         return current_lr
 
     def configure_optimizers(self):
@@ -203,6 +205,7 @@ def cli_main(args=None):
                                                    num_blocks=args.num_blocks,
                                                    key_query_value_dim=args.key_query_value_dim,
                                                    noam_opt_warmup_steps=args.noam_opt_warmup_steps,
+                                                   noam_scaler=args.noam_scaler,
                                                    lr=args.lr,
                                                    scheduler=args.scheduler,
                                                    scheduler_patience=args.scheduler_patience,
