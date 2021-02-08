@@ -142,7 +142,7 @@ class TransformerLightningModule(pl.LightningModule):
         parser.add_argument("--scheduler", default="noam")
         parser.add_argument("--scheduler_patience", default=10)
         parser.add_argument("--noam_step_factor", default=1, type=int)
-        parser.add_argument("--noam_scaler", default=1, type=int)
+        parser.add_argument("--noam_scaler", default=1, type=float)
         parser.add_argument("--encoder_with_hard_concrete_gate", default=False, type=bool)
 
         # parser.add_argument("--num_workers", type=int, default=8)
