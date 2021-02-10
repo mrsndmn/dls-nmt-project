@@ -183,6 +183,9 @@ def cli_main(args=None):
     pl.seed_everything()
 
     parser = ArgumentParser()
+    parser.add_argument("--checkpoint", required=True, type=str)
+    parser.add_argument("--strict", default=False, type=bool)
+
 
     # todo support other datamodules
 
@@ -201,7 +204,18 @@ def cli_main(args=None):
     args.src_vocab_size = dm.src_bpe.vocab_size()
     args.trg_vocab_size = dm.trg_bpe.vocab_size()
 
-    transformer_model = TransformerLightningModule(args.src_vocab_size, args.trg_vocab_size,
+    if len(args.checkpoint) > 0:
+        print("Restooring from cehckporint", args.checkpoint)
+        transformer_model = TransformerLightningModule.load_from_checkpoint(args.checkpoint, strict=args.strict)
+        transformer_model.hparams.noam_scaler = args.noam_scaler
+        transformer_model.hparams.lr= args.lr
+        transformer_model.hparams.noam_opt_warmup_steps = args.noam_opt_warmup_steps
+        transformer_model.hparams.scheduler = args.scheduler
+        transformer_model.hparams.scheduler_patience = args.scheduler_patience
+        transformer_model.hparams.noam_step_factor = args.noam_step_factor
+
+    else:
+        transformer_model = TransformerLightningModule(args.src_vocab_size, args.trg_vocab_size,
                                                    hidden_dim=args.hidden_dim,
                                                    num_blocks=args.num_blocks,
                                                    key_query_value_dim=args.key_query_value_dim,
@@ -210,8 +224,9 @@ def cli_main(args=None):
                                                    lr=args.lr,
                                                    scheduler=args.scheduler,
                                                    scheduler_patience=args.scheduler_patience,
-                                                   noam_step_factor=args.noam_step_factor,
-                                                   trg_bpe=dm.trg_bpe)
+                                                   noam_step_factor=args.noam_step_factor)
+
+    transformer_model.trg_bpe = dm.trg_bpe
 
     trainer = pl.Trainer.from_argparse_args(args)
     trainer.fit(transformer_model, datamodule=dm)
