@@ -183,7 +183,7 @@ def cli_main(args=None):
     pl.seed_everything()
 
     parser = ArgumentParser()
-    parser.add_argument("--checkpoint", required=True, type=str)
+    parser.add_argument("--checkpoint", required=False, type=str)
     parser.add_argument("--strict", default=False, type=bool)
 
 
