@@ -42,18 +42,14 @@ class HardConcreteGate(nn.Module):
 
         if self.training:
             torch.rand(self.random_buffer.size(), out=self.random_buffer) # avoid extra allocations
-            # print('self.random_buffer', self.random_buffer)
 
             one_minus_rand_log = (1 - self.random_buffer).log_()
-            # print(self.log_a, one_minus_rand_log, self.random_buffer.log())
             concrete = self.sigmoid((self.random_buffer.log() - one_minus_rand_log + self.log_a) / self.temperature)
         else:
             concrete = self.sigmoid(self.log_a)
 
         concrete = concrete * (self.adjust_range[1] - self.adjust_range[0]) + self.adjust_range[0]
         concrete = torch.clip(concrete, min=0, max=1)
-
-                # self.l2_penalty = self.l2_penalty_lambda * p_open * torch.pow(inputs, 2).sum()
 
         repeat_cnt = inputs.size(-1) // self.log_a.size(0)
         concrete = torch.repeat_interleave(concrete, repeat_cnt, dim=-1)

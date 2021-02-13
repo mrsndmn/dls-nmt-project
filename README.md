@@ -194,7 +194,7 @@
 ### Прунинг
 ```
 PYTHONPATH=. ~/anaconda3/bin/python pl_pruned_enconder_transformer.py \
-    --checkpoint 'lightning_logs/version_3/checkpoints/epoch=49-step=49999.ckpt' \
+    --checkpoint 'lightning_logs/version_12/checkpoints/epoch=24-step=128899.ckpt' \
     --encoder_with_hard_concrete_gate=1 \
     --strict='' \
     --lr=0.0005 \

@@ -102,7 +102,6 @@ class PrunedEncoderTransformerLightningModule(TransformerLightningModule):
         super(PrunedEncoderTransformerLightningModule, self).validation_epoch_end(validation_step_outputs_super)
 
         p_opens = torch.cat(p_opens, dim=0)
-        print('p_opens', p_opens[:2])
 
         # valid_steps x num_blocks x num_heads
         p_opens = p_opens.mean(dim=0)
@@ -110,7 +109,6 @@ class PrunedEncoderTransformerLightningModule(TransformerLightningModule):
 
         # 1, num_blocks x num_heads
         p_opens = p_opens.detach().cpu()
-        # print("p_opens", p_opens)
         p_opens = torch.repeat_interleave(p_opens, 100, dim=1)
         p_opens = torch.repeat_interleave(p_opens, 100, dim=2)
 

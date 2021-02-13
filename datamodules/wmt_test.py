@@ -20,7 +20,6 @@ def test_wmt14_datamodule():
     assert batch.trg_tensor.size(1) == batch.src_tensor.size(1)
     assert batch.trg_y_tensor.size(1) == batch.src_tensor.size(1)
 
-    # print(wmtdm.bad_lines)
     assert wmtdm.wmt is not None
 
     print("wmtdm.bad_lines", wmtdm.bad_lines)
