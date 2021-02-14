@@ -34,6 +34,7 @@
 * https://lena-voita.github.io/posts/acl19_heads.html
 * https://lena-voita.github.io/posts/source_target_contributions_to_nmt.html было просто интересно!
 * статья про оптимизацию L0 лоссов https://openreview.net/pdf?id=H1Y8hhg0b
+* документация pytorch. Некоторые вещи там понятнее описаны, чем в статьях)
 
 # Структура проекта
 
