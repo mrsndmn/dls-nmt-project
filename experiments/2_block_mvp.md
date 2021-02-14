@@ -52,6 +52,7 @@
 И спрунилось меньше голов чем в случае lambda 0.1.
 
 ![gch_p_open_lambda_0.05.png](resources/2blocks/gch_p_open_lambda_0.05.png)
+> Тут в легенде перепутаны первый и второй слои
 
 
 Визуализация того, как прунились головы:
@@ -74,6 +75,8 @@
 ### hcg_l0_penalty_lambda=0.1
 
 ![gch_p_open_lambda_0.1.png](resources/2blocks/gch_p_open_lambda_0.1.png)
+> Тут в легенде перепутаны первый и второй слои
+
 
 Как прунились головы:
 
