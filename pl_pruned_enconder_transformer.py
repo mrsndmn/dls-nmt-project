@@ -28,6 +28,10 @@ class PrunedEncoderTransformerLightningModule(TransformerLightningModule):
 
         self.transformer: transformer.Transformer
 
+        self.transformer.decoder_blocks.eval()
+        for p in self.transformer.decoder_blocks.parameters():
+            p.requires_grad = False
+
         self.hcg_l0_penalty_lambda = kwargs.get('hcg_l0_penalty_lambda', 0.02)
 
         self.valid_img_step = 0
@@ -52,8 +56,6 @@ class PrunedEncoderTransformerLightningModule(TransformerLightningModule):
         return self.transformer.encoder_blocks.get_multihead_self_attention()
 
     def training_step(self, batch: TransformerBatchedSequencesWithMasks, batch_idx):
-
-        self.transformer.decoder_blocks.eval() # freezes decoder parameters
 
         loss = super(PrunedEncoderTransformerLightningModule, self).training_step(batch, batch_idx)
 
