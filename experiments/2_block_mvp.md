@@ -21,6 +21,8 @@
 
 ![bleu](resources/2blocks/bleu.png)
 
+## Примеры перевода
+
 Вот примеры переводов:
 * [нулевая эпоха](resources/2blocks/0epoch_translation.txt)
 * [вторая](resources/2blocks/2epoch_translation.txt)
@@ -95,6 +97,6 @@
 ![bleu_lambda_0.1](resources/2blocks/bleu_lambda_0.1.png)
 
 
-### Веса
+## Веса
 
 Обученные веса двухблочного трансформера [тут](https://drive.google.com/drive/folders/10Sp-fjyNLp9IGlaGcdt-iWn3z0X_sR8e?usp=sharing).
