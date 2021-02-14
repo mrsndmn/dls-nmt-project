@@ -52,6 +52,8 @@ target:
 ![l0.2_popen](resources/2blocks_fixed/2blocks_fixed_pruned_l0.2_popen.png)
 
 ![pruned_l0.2_heads](resources/2blocks_fixed/2_blocks_fixed_pruned_l0.2.gif)
+> По горизонтали головы (8 штук), по вертикали слои (2 штуки)
+
 ### lambda=0.1
 
 ![l0.1_bleu](resources/2blocks_fixed/2blocks_fixed_pruned_l0.1_bleu.png)
@@ -59,6 +61,7 @@ target:
 ![l0.1_popen](resources/2blocks_fixed/2blocks_fixed_pruned_l0.1_popen.png)
 
 ![pruned_l0.1_heads](resources/2blocks_fixed/2_blocks_fixed_pruned_l0.1.gif)
+> По горизонтали головы (8 штук), по вертикали слои (2 штуки)
 
 ### lambda=0.05
 
@@ -67,4 +70,5 @@ target:
 ![l0.05_popen](resources/2blocks_fixed/2blocks_fixed_pruned_l0.05_popen.png)
 
 ![pruned_l0.05_heads](resources/2blocks_fixed/2_blocks_fixed_pruned_l0.05.gif)
+> По горизонтали головы (8 штук), по вертикали слои (2 штуки)
 

@@ -1,7 +1,6 @@
 
 Хотелось поэксперементировать с большим количеством голов и блоков.
 
-Попытки обучить трансформер из 6 блоков не увенчались успехом, но я все равно еще попробую разобраться и сделать это.
 
 ## Обучение
 
@@ -59,6 +58,7 @@ target:
 ![l0.5_popen](resources/4blocks/4blocks_pruned_l0.5_popen.png)
 
 ![4_blocks_pruned_l0.5_heads](resources/4blocks/4_blocks_pruned_l0.5.gif)
+> По горизонтали головы (8 штук), по вертикали слои (4 штуки)
 
 ### lambda=0.1
 
@@ -67,6 +67,7 @@ target:
 ![l0.1_popen](resources/4blocks/4blocks_pruned_l0.1_popen.png)
 
 ![4_blocks_pruned_l0.1_heads](resources/4blocks/4_blocks_pruned_l0.1.gif)
+> По горизонтали головы (8 штук), по вертикали слои (4 штуки)
 
 ### lambda=0.05
 
@@ -75,8 +76,9 @@ target:
 ![l0.05_popen](resources/4blocks/4blocks_pruned_l0.05_popen.png)
 
 ![4_blocks_pruned_l0.05_heads](resources/4blocks/4_blocks_pruned_l0.05.gif)
+> По горизонтали головы (8 штук), по вертикали слои (4 штуки)
 
-PS вот тут не хватило колаба, чтобы сошлись некоторые гейты, но общий смысл ясен
+PS вот тут не хватило лимита колаба, чтобы сошлись некоторые гейты
 
 
 ## Веса
