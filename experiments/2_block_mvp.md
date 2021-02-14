@@ -54,7 +54,7 @@
 ![gch_p_open_lambda_0.05.png](resources/2blocks/gch_p_open_lambda_0.05.png)
 > Тут в легенде перепутаны первый и второй слои
 
-
+---
 Визуализация того, как прунились головы:
 
 ![hcg_lambda_0.05](resources/2blocks/hcg_lambda_0.05.gif)
@@ -77,7 +77,7 @@
 ![gch_p_open_lambda_0.1.png](resources/2blocks/gch_p_open_lambda_0.1.png)
 > Тут в легенде перепутаны первый и второй слои
 
-
+---
 Как прунились головы:
 
 ![hcg_lambda_0.1](resources/2blocks/hcg_lambda_0.1.gif)
