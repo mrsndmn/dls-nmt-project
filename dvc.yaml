@@ -21,9 +21,17 @@ stages:
   build_bpe_src:
     cmd: yttm bpe --data .data/SRC_news-commentary-v14.en-ru.tsv --model .data/SRC_news-commentary-v14.en-ru.yttm
       --vocab_size 10000
+    deps:
+    - .data/SRC_news-commentary-v14.en-ru.tsv
+    outs:
+    - .data/SRC_news-commentary-v14.en-ru.yttm
   build_bpe_trg:
     cmd: yttm bpe --data .data/TRG_news-commentary-v14.en-ru.tsv --model .data/TRG_news-commentary-v14.en-ru.yttm
       --vocab_size 10000
+    deps:
+    - .data/TRG_news-commentary-v14.en-ru.tsv
+    outs:
+    - .data/TRG_news-commentary-v14.en-ru.yttm
   bpe_encode_src:
     cmd: yttm encode --output_type id --model .data/SRC_news-commentary-v14.en-ru.yttm
       --stream < .data/SRC_news-commentary-v14.en-ru.tsv > .data/SRC_BPE_ENCODED_news-commentary-v14.en-ru.tsv
