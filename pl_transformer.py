@@ -33,6 +33,7 @@ class TransformerLightningModule(pl.LightningModule):
         lr: float = 1., # see also lr scheduler
         noam_opt_warmup_steps: int= 4000,
         trg_bpe=None,
+        src_bpe=None,
         scheduler: str="noam",
         scheduler_patience:int=10,
         noam_step_factor: float = 1.,
@@ -59,6 +60,7 @@ class TransformerLightningModule(pl.LightningModule):
         self.criterion = transformer.LabelSmoothing(trg_vocab_size, smoothing=smoothing)
 
         self.trg_bpe: yttm.BPE = trg_bpe
+        self.src_bpe: yttm.BPE = src_bpe
 
         return
 
@@ -109,6 +111,7 @@ class TransformerLightningModule(pl.LightningModule):
         translation = translation.detach().cpu().numpy().tolist()
         translation = self._filter_eos_seq(translation)
         translation_decoded = self.trg_bpe.decode(translation, ignore_ids=ignore_ids)
+        src_decoded = self.src_bpe.decode(batch.src_tensor.detach().cpu().numpy().tolist())
 
         target = batch.trg_tensor.detach().cpu().numpy().tolist()
         target = self._filter_eos_seq(target)
@@ -120,22 +123,27 @@ class TransformerLightningModule(pl.LightningModule):
         # print("translation_decoded", translation_decoded[:10])
         # print("target_decoded", target_decoded[:10])
 
-        return translation_decoded, target_decoded
+        return translation_decoded, target_decoded, src_decoded
 
     def validation_epoch_end(self, validation_step_outputs):
         generated = []
         references = []
+        sources = []
 
         for vout in validation_step_outputs:
             for gen_seq in vout[0]:
                 generated.append(gen_seq)
             for trg_seq in vout[1]:
                 references.append([trg_seq])
+            for src_seq in vout[2]:
+                sources.append([src_seq])
 
         translation_str = "\n\n\n".join(generated[:5])
         target_str = "\n\n\n".join(x[0] for x in references[:5])
+        sources_str = "\n\n\n".join(x[0] for x in sources[:5])
         self.logger.experiment.add_text("translate_decoded", translation_str)
         self.logger.experiment.add_text("translate_target", target_str)
+        self.logger.experiment.add_text("translate_source", sources_str)
 
         calculated_bleu = corpus_bleu(references, generated)
         # print("calculated_bleu", calculated_bleu * 100)
@@ -237,6 +245,7 @@ def cli_main(args=None):
         transformer_model = TransformerLightningModule(**lightning_module_args)
 
     transformer_model.trg_bpe = dm.trg_bpe
+    transformer_model.src_bpe = dm.src_bpe
 
     trainer_logger = pl.loggers.TensorBoardLogger("lightning_logs", name=args.name)
     early_stop_callback = EarlyStopping(
