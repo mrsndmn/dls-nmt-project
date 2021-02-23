@@ -4,6 +4,8 @@ from nltk.translate.bleu_score import corpus_bleu
 
 import youtokentome as yttm
 import pytorch_lightning as pl
+from pytorch_lightning.callbacks import EarlyStopping
+
 import torch
 from torchnlp.utils import lengths_to_mask
 
@@ -139,6 +141,7 @@ class TransformerLightningModule(pl.LightningModule):
         calculated_bleu = corpus_bleu(references, generated)
         # print("calculated_bleu", calculated_bleu * 100)
         self.log("valid_bleu", calculated_bleu * 100, prog_bar=True)
+
         return
 
     @staticmethod
@@ -197,6 +200,11 @@ def cli_main(args=None):
     parser.add_argument("--strict", default=False, action='store_true')
     parser.add_argument("--name", type=str, required=True)
 
+    parser.add_argument("--early_stopping_monitor", type=str, default='valid_bleu')
+    parser.add_argument("--early_stopping_mode", type=str, default='max')
+    parser.add_argument("--early_stopping_min_delta", type=float, default=1.)
+    parser.add_argument("--early_stopping_patience", type=int, default=1)
+
     # todo support other datamodules
 
     dm_class = WMTDataModule
@@ -232,7 +240,14 @@ def cli_main(args=None):
     transformer_model.trg_bpe = dm.trg_bpe
 
     trainer_logger = pl.loggers.TensorBoardLogger("lightning_logs", name=args.name)
-    trainer = pl.Trainer.from_argparse_args(args, logger=trainer_logger)
+    early_stop_callback = EarlyStopping(
+        monitor=args.early_stopping_monitor,
+        mode=args.early_stopping_mode,
+        min_delta=args.early_stopping_min_delta,
+        patience=args.early_stopping_patience,
+        verbose=True,
+    )
+    trainer = pl.Trainer.from_argparse_args(args, logger=trainer_logger, callbacks=[early_stop_callback])
     trainer.fit(transformer_model, datamodule=dm)
     return dm, transformer_model, trainer
 
