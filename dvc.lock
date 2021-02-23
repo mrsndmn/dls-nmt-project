@@ -79,3 +79,39 @@ bpe_encode_trg:
   - path: .data/TRG_BPE_ENCODED_news-commentary-v14.en-ru.tsv
     md5: 11b2b158d13eb01247c6e9e2860edc21
     size: 41055273
+train_4b_512h_transormer:
+  cmd: python pl_transformer.py --max_epochs 2 --batch_size=10 --val_batch_size=10
+    --src_vocab_size=10000 --trg_vocab_size=10000 --num_blocks 4 --hidden_dim 512
+    --key_query_value_dim 64 --progress_bar_refresh_rate 20 --gpus=1 --src_bpe_tokenized_file
+    .data/SRC_BPE_ENCODED_news-commentary-v14.en-ru.tsv --trg_bpe_tokenized_file .data/TRG_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+    --src_bpe_model_file .data/SRC_news-commentary-v14.en-ru.yttm --trg_bpe_model_file
+    .data/TRG_news-commentary-v14.en-ru.yttm --name 4b_512h_transormer
+  deps:
+  - path: .data/SRC_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+    md5: 9b11fc90cbf33dfd61eff3b55f14e8bc
+    size: 35351399
+  - path: .data/SRC_news-commentary-v14.en-ru.yttm
+    md5: 7b8731e574dbdc0d723800c5555dc1f9
+    size: 130091
+  - path: .data/TRG_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+    md5: 11b2b158d13eb01247c6e9e2860edc21
+    size: 41055273
+  - path: .data/TRG_news-commentary-v14.en-ru.yttm
+    md5: ad00fe59b44052fecbcad30748957dc1
+    size: 129558
+  - path: datamodules/
+    md5: fefda054fde5b2b1c2715b8043a37604.dir
+    size: 19195
+    nfiles: 5
+  - path: models/
+    md5: 25d9cf803375dc66c70eba682a6acbc1.dir
+    size: 47306
+    nfiles: 14
+  - path: pl_transformer.py
+    md5: d7ed3269dc7b18e00083663738a09e82
+    size: 9767
+  outs:
+  - path: lightning_logs/4b_512h_transormer/
+    md5: 12f8bef06fa1c4343b47e67ee117d8b5.dir
+    size: 558895482
+    nfiles: 3

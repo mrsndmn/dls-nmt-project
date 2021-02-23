@@ -103,7 +103,7 @@ class WMTDataModule(pl.LightningDataModule):
 
     def _bpe_model(self, bpe_model_file):
         if bpe_model_file is None:
-            raise ValueError("can't get bpe: bpe model file was not specified")
+            raise ValueError("can't get bpe: bpe model file (argument `src_bpe_model_file|trg_bpe_model_file`) was not specified")
 
         return yttm.BPE(model=bpe_model_file)
 
