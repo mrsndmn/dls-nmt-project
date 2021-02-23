@@ -10,3 +10,11 @@ stages:
     - .data/news-commentary-v14.en-ru.tsv.gz
     outs:
     - .data/news-commentary-v14.en-ru.tsv
+  src_trg_split_dataset:
+    cmd: python datamodules/split_data.py --file .data/news-commentary-v14.en-ru.tsv
+      --src-out-file .data/SRC_news-commentary-v14.en-ru.tsv --trg-out-file .data/TRG_news-commentary-v14.en-ru.tsv
+    deps:
+    - .data/news-commentary-v14.en-ru.tsv
+    outs:
+    - .data/SRC_news-commentary-v14.en-ru.tsv
+    - .data/TRG_news-commentary-v14.en-ru.tsv

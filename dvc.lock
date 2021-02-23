@@ -15,3 +15,17 @@ extract_data:
   - path: .data/news-commentary-v14.en-ru.tsv
     md5: d251228dc9cd66d49ccd5377d322ad53
     size: 125093461
+src_trg_split_dataset:
+  cmd: python datamodules/split_data.py --file .data/news-commentary-v14.en-ru.tsv
+    --src-out-file .data/SRC_news-commentary-v14.en-ru.tsv --trg-out-file .data/TRG_news-commentary-v14.en-ru.tsv
+  deps:
+  - path: .data/news-commentary-v14.en-ru.tsv
+    md5: d251228dc9cd66d49ccd5377d322ad53
+    size: 125093461
+  outs:
+  - path: .data/SRC_news-commentary-v14.en-ru.tsv
+    md5: 3aa4e8c7a3db0868a98a90605272a50b
+    size: 41132782
+  - path: .data/TRG_news-commentary-v14.en-ru.tsv
+    md5: 93b50aa44cbfc1b006cf1f2683793d52
+    size: 82769625
