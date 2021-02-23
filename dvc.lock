@@ -29,3 +29,37 @@ src_trg_split_dataset:
   - path: .data/TRG_news-commentary-v14.en-ru.tsv
     md5: 93b50aa44cbfc1b006cf1f2683793d52
     size: 82769625
+build_bpe_src:
+  cmd: yttm bpe --data .data/SRC_news-commentary-v14.en-ru.tsv --model .data/SRC_news-commentary-v14.en-ru.yttm
+    --vocab_size 10000
+build_bpe_trg:
+  cmd: yttm bpe --data .data/TRG_news-commentary-v14.en-ru.tsv --model .data/TRG_news-commentary-v14.en-ru.yttm
+    --vocab_size 10000
+bpe_encode_src:
+  cmd: yttm encode --output_type id --model .data/SRC_news-commentary-v14.en-ru.yttm
+    --stream < .data/SRC_news-commentary-v14.en-ru.tsv > .data/SRC_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+  deps:
+  - path: .data/SRC_news-commentary-v14.en-ru.tsv
+    md5: 3aa4e8c7a3db0868a98a90605272a50b
+    size: 41132782
+  - path: .data/SRC_news-commentary-v14.en-ru.yttm
+    md5: 7b8731e574dbdc0d723800c5555dc1f9
+    size: 130091
+  outs:
+  - path: .data/SRC_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+    md5: 9b11fc90cbf33dfd61eff3b55f14e8bc
+    size: 35351399
+bpe_encode_trg:
+  cmd: yttm encode --output_type id --model .data/TRG_news-commentary-v14.en-ru.yttm
+    --stream < .data/TRG_news-commentary-v14.en-ru.tsv > .data/TRG_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+  deps:
+  - path: .data/TRG_news-commentary-v14.en-ru.tsv
+    md5: 93b50aa44cbfc1b006cf1f2683793d52
+    size: 82769625
+  - path: .data/TRG_news-commentary-v14.en-ru.yttm
+    md5: ad00fe59b44052fecbcad30748957dc1
+    size: 129558
+  outs:
+  - path: .data/TRG_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+    md5: 11b2b158d13eb01247c6e9e2860edc21
+    size: 41055273
