@@ -210,7 +210,7 @@ def cli_main(args=None):
     parser.add_argument("--early_stopping_monitor", type=str, default='valid_bleu')
     parser.add_argument("--early_stopping_mode", type=str, default='max')
     parser.add_argument("--early_stopping_min_delta", type=float, default=1.)
-    parser.add_argument("--early_stopping_patience", type=int, default=1)
+    parser.add_argument("--early_stopping_patience", type=int, default=2)
 
     # todo support other datamodules
 

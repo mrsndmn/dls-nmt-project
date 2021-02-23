@@ -33,7 +33,7 @@ stages:
     outs:
     - .data/TRG_news-commentary-v14.en-ru.yttm
   bpe_encode_src:
-    cmd: yttm encode --output_type id --model .data/SRC_news-commentary-v14.en-ru.yttm
+    cmd: yttm encode --output_type id --model .data/SRC_news-commentary-v14.en-ru.yttm --bos --eos
       --stream < .data/SRC_news-commentary-v14.en-ru.tsv > .data/SRC_BPE_ENCODED_news-commentary-v14.en-ru.tsv
     deps:
     - .data/SRC_news-commentary-v14.en-ru.tsv
@@ -41,7 +41,7 @@ stages:
     outs:
     - .data/SRC_BPE_ENCODED_news-commentary-v14.en-ru.tsv
   bpe_encode_trg:
-    cmd: yttm encode --output_type id --model .data/TRG_news-commentary-v14.en-ru.yttm
+    cmd: yttm encode --output_type id --model .data/TRG_news-commentary-v14.en-ru.yttm --bos --eos
       --stream < .data/TRG_news-commentary-v14.en-ru.tsv > .data/TRG_BPE_ENCODED_news-commentary-v14.en-ru.tsv
     deps:
     - .data/TRG_news-commentary-v14.en-ru.tsv

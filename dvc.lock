@@ -53,7 +53,7 @@ build_bpe_trg:
     size: 129558
 bpe_encode_src:
   cmd: yttm encode --output_type id --model .data/SRC_news-commentary-v14.en-ru.yttm
-    --stream < .data/SRC_news-commentary-v14.en-ru.tsv > .data/SRC_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+    --bos --eos --stream < .data/SRC_news-commentary-v14.en-ru.tsv > .data/SRC_BPE_ENCODED_news-commentary-v14.en-ru.tsv
   deps:
   - path: .data/SRC_news-commentary-v14.en-ru.tsv
     md5: 3aa4e8c7a3db0868a98a90605272a50b
@@ -63,8 +63,8 @@ bpe_encode_src:
     size: 130091
   outs:
   - path: .data/SRC_BPE_ENCODED_news-commentary-v14.en-ru.tsv
-    md5: 9b11fc90cbf33dfd61eff3b55f14e8bc
-    size: 35351399
+    md5: 060e0f27b78a707f2415f85701271ff1
+    size: 36475411
 bpe_encode_trg:
   cmd: yttm encode --output_type id --model .data/TRG_news-commentary-v14.en-ru.yttm
     --stream < .data/TRG_news-commentary-v14.en-ru.tsv > .data/TRG_BPE_ENCODED_news-commentary-v14.en-ru.tsv
