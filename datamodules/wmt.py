@@ -136,7 +136,7 @@ class WMTDataModule(pl.LightningDataModule):
             src_sentences_filtered.append(src)
             trg_sentences_filtered.append(trg)
 
-        self.wmt = TextTranslationDataset(src_sentences, trg_sentences)
+        self.wmt = TextTranslationDataset(src_sentences_filtered, trg_sentences_filtered)
 
         train_len = len(self.wmt) - self.valid_size
         wmt_train, wmt_valid = torch.utils.data.random_split(self.wmt, [train_len, self.valid_size])
