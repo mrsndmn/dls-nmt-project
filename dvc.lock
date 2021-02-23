@@ -1,7 +1,17 @@
 download_data:
   cmd: 'mkdir -p .data && wget http://data.statmt.org/news-commentary/v14/training/news-commentary-v14.en-ru.tsv.gz
-    --output-file=.data/news-commentary-v14.en-ru.tsv.gz '
+    --output-document=.data/news-commentary-v14.en-ru.tsv.gz '
   outs:
   - path: .data/news-commentary-v14.en-ru.tsv.gz
-    md5: 8ba59fac7805193ccfe9b0829d6bc1ab
-    size: 62025
+    md5: c25523c3f16878530ce4dd154593fb92
+    size: 41411245
+extract_data:
+  cmd: gunzip -c .data/news-commentary-v14.en-ru.tsv.gz > .data/news-commentary-v14.en-ru.tsv
+  deps:
+  - path: .data/news-commentary-v14.en-ru.tsv.gz
+    md5: c25523c3f16878530ce4dd154593fb92
+    size: 41411245
+  outs:
+  - path: .data/news-commentary-v14.en-ru.tsv
+    md5: d251228dc9cd66d49ccd5377d322ad53
+    size: 125093461
