@@ -1,6 +1,6 @@
 download_data:
-  cmd: 'mkdir -p .data && wget http://data.statmt.org/news-commentary/v14/training/news-commentary-v14.en-ru.tsv.gz
-    --output-document=.data/news-commentary-v14.en-ru.tsv.gz '
+  cmd: 'dvc get-url http://data.statmt.org/news-commentary/v14/training/news-commentary-v14.en-ru.tsv.gz
+    .data/news-commentary-v14.en-ru.tsv.gz '
   outs:
   - path: .data/news-commentary-v14.en-ru.tsv.gz
     md5: c25523c3f16878530ce4dd154593fb92
