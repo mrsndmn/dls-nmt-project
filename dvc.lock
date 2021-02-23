@@ -1,0 +1,7 @@
+download_data:
+  cmd: 'mkdir -p .data && wget http://data.statmt.org/news-commentary/v14/training/news-commentary-v14.en-ru.tsv.gz
+    --output-file=.data/news-commentary-v14.en-ru.tsv.gz '
+  outs:
+  - path: .data/news-commentary-v14.en-ru.tsv.gz
+    md5: 8ba59fac7805193ccfe9b0829d6bc1ab
+    size: 62025

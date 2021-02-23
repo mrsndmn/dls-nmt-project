@@ -1,0 +1,6 @@
+stages:
+  download_data:
+    cmd: 'mkdir -p .data && wget http://data.statmt.org/news-commentary/v14/training/news-commentary-v14.en-ru.tsv.gz
+      --output-file=.data/news-commentary-v14.en-ru.tsv.gz '
+    outs:
+    - .data/news-commentary-v14.en-ru.tsv.gz
