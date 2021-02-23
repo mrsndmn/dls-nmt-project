@@ -7,13 +7,6 @@ import pytorch_lightning as pl
 
 import torch
 from torch.utils.data import DataLoader, Dataset, random_split
-from torchnlp.encoders.text.text_encoder import BatchedSequences
-
-from torchtext.utils import download_from_url, extract_archive, unicode_csv_reader
-
-import torchtext
-from torchnlp.encoders.text import stack_and_pad_tensors
-from torchnlp.utils import collate_tensors
 
 import youtokentome as yttm
 import pickle

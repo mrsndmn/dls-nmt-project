@@ -7,7 +7,6 @@ import pytorch_lightning as pl
 from pytorch_lightning.callbacks import EarlyStopping
 
 import torch
-from torchnlp.utils import lengths_to_mask
 
 from models import transformer
 from datamodules.wmt import TransformerBatchedSequencesWithMasks

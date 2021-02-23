@@ -51,7 +51,7 @@ stages:
   train_4b_512h_transormer:
     cmd: python pl_transformer.py
       --name 4b_512h_transormer
-      --max_epochs 10 --batch_size 100 --val_batch_size 50
+      --max_epochs 5 --batch_size 50 --val_batch_size 50
       --gpus 1 --progress_bar_refresh_rate 20
       --src_vocab_size=10000 --trg_vocab_size=10000
       --num_blocks 4 --hidden_dim 512 --key_query_value_dim 64

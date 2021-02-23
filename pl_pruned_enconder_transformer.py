@@ -5,7 +5,6 @@ from nltk.translate.bleu_score import corpus_bleu
 import youtokentome as yttm
 import pytorch_lightning as pl
 import torch
-from torchnlp.utils import lengths_to_mask
 
 from models import transformer
 from models import attention

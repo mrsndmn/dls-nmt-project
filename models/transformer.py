@@ -91,6 +91,7 @@ class Transformer(nn.Module):
 
         return decoder_output # batch_size x seq_len x hidden_dim
 
+    # todo не используется
     def _build_seq_eos_mask(self, tokens: torch.Tensor, eos_id=3, curr_pos_in_seq=0):
         """
         маскирует токены, которые идут после eos токена
