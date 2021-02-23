@@ -23,7 +23,7 @@ from collections import namedtuple
 TransformerBatchedSequencesWithMasks = namedtuple('TransformerBatchedSequencesWithMasks', ['src_tensor', 'src_mask', 'trg_tensor', 'trg_y_tensor', 'trg_mask', 'n_trg_tokens'])
 
 class TextTranslationDataset(torch.utils.data.Dataset):
-    def __init__(self, src_data, trg_data):
+    def __init__(self, src_sentences, trg_sentences):
         """Initiate text-translation dataset.
         Args:
             todo add docs
@@ -33,21 +33,21 @@ class TextTranslationDataset(torch.utils.data.Dataset):
 
         super(TextTranslationDataset, self).__init__()
 
-        if len(src_data) != len(trg_data):
+        if len(src_sentences) != len(trg_sentences):
             raise ValueError(
                 "source and target datasets must be the same length")
 
-        self._src_data = src_data
-        self._trg_data = trg_data
+        self._src_sentences = src_sentences
+        self._trg_sentences = trg_sentences
 
     def __getitem__(self, i):
-        return self._src_data[-i], self._trg_data[-i]
+        return self._src_sentences[-i], self._trg_sentences[-i]
 
     def __len__(self):
-        return len(self._src_data)
+        return len(self._src_sentences)
 
     def __iter__(self):
-        for x in zip(self._src_data, self._trg_data):
+        for x in zip(self._src_sentences, self._trg_sentences):
             yield x
 
 
@@ -55,187 +55,98 @@ class WMTDataModule(pl.LightningDataModule):
     """
     WMT19 datamodule
     """
-    url = 'http://data.statmt.org/news-commentary/v14/training/news-commentary-v14.en-ru.tsv.gz'
-    file_name = 'news-commentary-v14.en-ru.tsv'
     name = "wmt"
 
     def __init__(self,
-                 batch_size: int = 1,
-                 val_batch_size: int = 1,
-                 download: bool = True,
-                 root: str = '.data',
-                 max_lines=None,
-                 force=False,
+                 src_bpe_tokenized_file: str,
+                 trg_bpe_tokenized_file: str,
+                 src_bpe_model_file: str = None,
+                 trg_bpe_model_file: str = None,
                  src_vocab_size=10000,
                  trg_vocab_size=10000,
+                 batch_size: int = 1,
+                 val_batch_size: int = None,
+                 max_lines=None,
                  max_seq_len_tokens=100,
                  min_seq_len_tokens=10,
-                 valid_length = 3000,
+                 valid_size = 3000,
                  ):
         super(WMTDataModule, self).__init__()
 
         self.batch_size = batch_size
-        self.val_batch_size = val_batch_size
+        self.val_batch_size = val_batch_size if val_batch_size is not None else batch_size
 
-        self.download: bool = download
-        self.data_root: str = root
-        self.file_path: str = os.path.join(self.data_root, self.file_name)
+        if src_bpe_tokenized_file is None:
+            raise ValueError("src_bpe_tokenized_file is required")
+        self.src_bpe_tokenized_file = src_bpe_tokenized_file
+        if trg_bpe_tokenized_file is None:
+            raise ValueError("trg_bpe_tokenized_file is required")
+        self.trg_bpe_tokenized_file = trg_bpe_tokenized_file
 
-        self.src_file = self.file_path + "_src_only"
-        self.trg_file = self.file_path + "_trg_only"
-        self.src_bpe_file = self.src_file + "_bpe"
-        self.trg_bpe_file = self.trg_file + "_bpe"
+        self.src_bpe_model_file = src_bpe_model_file
+        self.trg_bpe_model_file = trg_bpe_model_file
 
         self.src_vocab_size = src_vocab_size
         self.trg_vocab_size = trg_vocab_size
-
-        self.src_bpe: yttm.BPE = None
-        self.trg_bpe: yttm.BPE = None
 
         self.wmt = None
 
         self.bad_lines = 0
         self.max_lines = max_lines
 
-        self.force = force
         self.max_seq_len_tokens = max_seq_len_tokens
         self.min_seq_len_tokens = min_seq_len_tokens
 
-        self.valid_length = valid_length
+        self.valid_size = valid_size
 
         return
 
-    def download_dataset(self):
+    def _bpe_model(self, bpe_model_file):
+        if bpe_model_file is None:
+            raise ValueError("can't get bpe: bpe model file was not specified")
 
-        if not self.force and os.path.isfile(self.file_path):
-            return
+        return yttm.BPE(model=bpe_model_file)
 
-        dataset_tar = torchtext.utils.download_from_url(self.url)
-        extracted_files = torchtext.utils.extract_archive(dataset_tar)
-        assert len(extracted_files) == 1
-        extracted_file = extracted_files[0]
+    @property
+    def src_bpe(self) -> yttm.BPE:
+        return self._bpe_model(self.src_bpe_model_file)
 
-        with io.open(os.path.expanduser(extracted_file), encoding="utf8") as f:
-            file_lines = f.readlines()
-        file_lines.sort(key=lambda x: len(x))
+    @property
+    def trg_bpe(self) -> yttm.BPE:
+        return self._bpe_model(self.trg_bpe_model_file)
 
-        self._remove_file(extracted_file)
-        with io.open(os.path.expanduser(extracted_file), mode='w', encoding="utf8") as f:
-            f.writelines(file_lines)
+    def _parse_bpe_tokenized_encoded_file(self, bpe_encoded_file):
 
-        # todo remove trash from file
+        with open(bpe_encoded_file, 'r') as f:
+            bpe_tokenized_sentences = []
 
-        return extracted_file
-
-    def preprocess_line(self, line: str):
-        return line.lower()
-
-    def split_files(self, file_path):
-
-        if not self.force and os.path.isfile(self.src_file) and os.path.isfile(self.trg_file):
-            return
-
-        self._remove_file(self.src_file)
-        self._remove_file(self.trg_file)
-
-        with io.open(os.path.expanduser(file_path), encoding="utf8") as f:
-            src_only_file = open(self.src_file, 'w')
-            trg_only_file = open(self.trg_file, 'w')
-
-            for i, line in enumerate(f):
-                line = line.strip()
-                line = line.split("\t")
-
-                if len(line) != 2 or line[0] == "" or line[1] == "":
-                    self.bad_lines += 1
-                    continue
-
-                if self.max_lines is not None and self.max_lines <= i:
-                    break
-
-                src_line: str
-                trg_line: str
-                src_line = self.preprocess_line(line[0])
-                trg_line = self.preprocess_line(line[1])
-
-                src_only_file.write(src_line + "\n")
-                trg_only_file.write(trg_line + "\n")
-
-            src_only_file.close()
-            trg_only_file.close()
-
-        return
-
-    def _remove_file(self, file):
-        if os.path.isfile(file):
-            os.remove(file)
-            return True
-        return False
-
-    def bpe_tokenize(self):
-        self.split_files(self.file_path)
-
-        if self.force or not os.path.isfile(self.src_bpe_file) or not os.path.isfile(self.src_bpe_file):
-
-            self._remove_file(self.src_bpe_file)
-            self._remove_file(self.trg_bpe_file)
-
-            yttm.BPE.train(
-                data=self.src_file, vocab_size=self.src_vocab_size, model=self.src_bpe_file)
-            yttm.BPE.train(
-                data=self.trg_file, vocab_size=self.trg_vocab_size, model=self.trg_bpe_file)
-
-        # Loading model
-        self.src_bpe: yttm.BPE = yttm.BPE(model=self.src_bpe_file)
-        self.trg_bpe: yttm.BPE = yttm.BPE(model=self.trg_bpe_file)
-
-        return
-
-    def tokenize_file(self, file, tokenizer: yttm.BPE):
-        data = []
-        with io.open(os.path.expanduser(file), encoding="utf8") as f:
             for line in f:
-                tokenized_line = tokenizer.encode(
-                    line, output_type=yttm.OutputType.ID, bos=True, eos=True)
-                data.append(tokenized_line)
+                line = line.strip()
+                bpe_tokenized_sentences.append( list(map(int, line.split(" "))) )
 
-        return data
+            return bpe_tokenized_sentences
 
     def setup(self, stage=None):
 
-        self.download_dataset()
+        src_sentences = self._parse_bpe_tokenized_encoded_file(self.src_bpe_tokenized_file)
+        trg_sentences = self._parse_bpe_tokenized_encoded_file(self.trg_bpe_tokenized_file)
 
-        self.bpe_tokenize()
+        src_sentences_filtered = []
+        trg_sentences_filtered = []
+        for i in range(len(trg_sentences)):
+            src = src_sentences[i]
+            trg = trg_sentences[i]
+            if len(src) > self.max_seq_len_tokens or len(src) < self.min_seq_len_tokens:
+                continue
+            if len(trg) > self.max_seq_len_tokens or len(trg) < self.min_seq_len_tokens:
+                continue
+            src_sentences_filtered.append(src)
+            trg_sentences_filtered.append(trg)
 
-        self.src_pickle = self.file_path + ".pickle"
-        if os.path.isfile(self.src_pickle):
-            with open(self.src_pickle, 'rb') as f:
-                src_data = pickle.load(f)
-                trg_data = pickle.load(f)
-        else:
-            with open(self.src_pickle, 'wb') as f:
-                src_data = self.tokenize_file(self.src_file, self.src_bpe)
-                trg_data = self.tokenize_file(self.trg_file, self.trg_bpe)
-                src_data_filtered = []
-                trg_data_filtered = []
-                for i in range(len(trg_data)):
-                    src = src_data[i]
-                    trg = trg_data[i]
-                    if len(src) > self.max_seq_len_tokens or len(src) < self.min_seq_len_tokens:
-                        continue
-                    if len(trg) > self.max_seq_len_tokens or len(trg) < self.min_seq_len_tokens:
-                        continue
-                    src_data_filtered.append(src)
-                    trg_data_filtered.append(trg)
+        self.wmt = TextTranslationDataset(src_sentences, trg_sentences)
 
-                pickle.dump(src_data_filtered, f)
-                pickle.dump(trg_data_filtered, f)
-
-
-        self.wmt = TextTranslationDataset(src_data, trg_data)
-
-        train_len = len(self.wmt) - self.valid_length
-        wmt_train, wmt_valid = torch.utils.data.random_split(self.wmt, [train_len, self.valid_length])
+        train_len = len(self.wmt) - self.valid_size
+        wmt_train, wmt_valid = torch.utils.data.random_split(self.wmt, [train_len, self.valid_size])
         self.wmt_train = wmt_train
         self.wmt_valid = wmt_valid
 
@@ -281,7 +192,7 @@ class WMTDataModule(pl.LightningDataModule):
         return TransformerBatchedSequencesWithMasks(src_padded, src_mask, trg_padded, trg_y_padded, trg_mask, num_target_tokens)
 
     def train_dataloader(self) -> DataLoader:
-        return DataLoader(self.wmt_train, batch_size=self.batch_size, collate_fn=self.collate_fn, shuffle=False, num_workers=1)
+        return DataLoader(self.wmt_train, batch_size=self.batch_size, collate_fn=self.collate_fn, shuffle=True, num_workers=1)
 
     def val_dataloader(self) -> DataLoader:
         return DataLoader(self.wmt_valid, batch_size=self.val_batch_size, collate_fn=self.collate_fn, shuffle=False, num_workers=1)

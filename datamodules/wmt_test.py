@@ -2,18 +2,21 @@ import pytest
 
 import datamodules.wmt as wmt
 
-from datamodules.wmt import TransformerBatchedSequencesWithMasks
-
 def test_wmt14_datamodule():
     max_lines = 10000
     batch_size = 5
-    wmtdm = wmt.WMTDataModule(download=True, batch_size=batch_size, force=False, max_lines=max_lines)
+
+    src_bpe_tokenized_file = '.data/SRC_BPE_ENCODED_news-commentary-v14.en-ru.tsv'
+    trg_bpe_tokenized_file = '.data/TRG_BPE_ENCODED_news-commentary-v14.en-ru.tsv'
+    wmtdm = wmt.WMTDataModule(src_bpe_tokenized_file=src_bpe_tokenized_file,
+                              trg_bpe_tokenized_file=trg_bpe_tokenized_file,
+                              batch_size=batch_size)
 
     wmtdm.setup()
 
     triain_dl = wmtdm.train_dataloader()
 
-    batch: TransformerBatchedSequencesWithMasks = next(iter(triain_dl))
+    batch: wmt.TransformerBatchedSequencesWithMasks = next(iter(triain_dl))
 
     assert batch.src_tensor.size(0) == batch_size
     assert batch.trg_tensor.size(0) == batch_size
