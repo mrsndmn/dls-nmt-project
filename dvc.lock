@@ -67,7 +67,7 @@ bpe_encode_src:
     size: 36475411
 bpe_encode_trg:
   cmd: yttm encode --output_type id --model .data/TRG_news-commentary-v14.en-ru.yttm
-    --stream < .data/TRG_news-commentary-v14.en-ru.tsv > .data/TRG_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+    --bos --eos --stream < .data/TRG_news-commentary-v14.en-ru.tsv > .data/TRG_BPE_ENCODED_news-commentary-v14.en-ru.tsv
   deps:
   - path: .data/TRG_news-commentary-v14.en-ru.tsv
     md5: 93b50aa44cbfc1b006cf1f2683793d52
@@ -77,8 +77,8 @@ bpe_encode_trg:
     size: 129558
   outs:
   - path: .data/TRG_BPE_ENCODED_news-commentary-v14.en-ru.tsv
-    md5: 11b2b158d13eb01247c6e9e2860edc21
-    size: 41055273
+    md5: dddc1e06de0b3a3b9f9e5547e6ac5181
+    size: 42179285
 train_4b_512h_transormer:
   cmd: python pl_transformer.py --name 4b_512h_transormer --max_epochs 50 --batch_size
     25 --val_batch_size 10 --limit_train_batches 10 --limit_val_batches 10 --gpus
@@ -201,4 +201,40 @@ train_4b_512h_transormer:
   - path: lightning_logs/4b_512h_transormer_pruned_lambda_0.1/
     md5: 89e304ab9ceac38035c37194d7103595.dir
     size: 424145964
+    nfiles: 3
+train_8b_512h_transormer:
+  cmd: python pl_transformer.py --name 8b_512h_transormer --max_epochs 15 --batch_size
+    50 --val_batch_size 50 --gpus 1 --progress_bar_refresh_rate 20 --src_vocab_size=10000
+    --trg_vocab_size=10000 --num_blocks 8 --hidden_dim 512 --key_query_value_dim 64
+    --src_bpe_tokenized_file .data/SRC_BPE_ENCODED_news-commentary-v14.en-ru.tsv --trg_bpe_tokenized_file
+    .data/TRG_BPE_ENCODED_news-commentary-v14.en-ru.tsv --src_bpe_model_file .data/SRC_news-commentary-v14.en-ru.yttm
+    --trg_bpe_model_file .data/TRG_news-commentary-v14.en-ru.yttm
+  deps:
+  - path: .data/SRC_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+    md5: 060e0f27b78a707f2415f85701271ff1
+    size: 36475411
+  - path: .data/SRC_news-commentary-v14.en-ru.yttm
+    md5: 7b8731e574dbdc0d723800c5555dc1f9
+    size: 130091
+  - path: .data/TRG_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+    md5: dddc1e06de0b3a3b9f9e5547e6ac5181
+    size: 42179285
+  - path: .data/TRG_news-commentary-v14.en-ru.yttm
+    md5: ad00fe59b44052fecbcad30748957dc1
+    size: 129558
+  - path: datamodules/
+    md5: b629208e1910879fe6c04b3643decebb.dir
+    size: 18615
+    nfiles: 5
+  - path: models/
+    md5: c920b0c4483cbbb9692d6058123481fb.dir
+    size: 47347
+    nfiles: 14
+  - path: pl_transformer.py
+    md5: 281791d835a9f45116207690dd4f92d6
+    size: 10819
+  outs:
+  - path: lightning_logs/8b_512h_transormer/
+    md5: e246e07f511550b9009b833baecd16a9.dir
+    size: 912892479
     nfiles: 3

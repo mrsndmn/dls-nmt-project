@@ -118,3 +118,24 @@ stages:
     - pl_pruned_enconder_transformer.py
     outs:
     - lightning_logs/4b_512h_transormer_pruned_lambda_0.01/
+  train_8b_512h_transormer:
+    cmd: python pl_transformer.py
+      --name 8b_512h_transormer
+      --max_epochs 15 --batch_size 50 --val_batch_size 50
+      --gpus 1 --progress_bar_refresh_rate 20
+      --src_vocab_size=10000 --trg_vocab_size=10000
+      --num_blocks 8 --hidden_dim 512 --key_query_value_dim 64
+      --src_bpe_tokenized_file .data/SRC_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+      --trg_bpe_tokenized_file .data/TRG_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+      --src_bpe_model_file .data/SRC_news-commentary-v14.en-ru.yttm
+      --trg_bpe_model_file .data/TRG_news-commentary-v14.en-ru.yttm
+    deps:
+    - .data/TRG_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+    - .data/SRC_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+    - .data/TRG_news-commentary-v14.en-ru.yttm
+    - .data/SRC_news-commentary-v14.en-ru.yttm
+    - datamodules/
+    - models/
+    - pl_transformer.py
+    outs:
+    - lightning_logs/8b_512h_transormer/
