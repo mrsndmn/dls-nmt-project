@@ -5,7 +5,6 @@ from nltk.translate.bleu_score import corpus_bleu
 import youtokentome as yttm
 import pytorch_lightning as pl
 import torch
-from torchnlp.utils import lengths_to_mask
 
 from models import transformer
 from models import attention
@@ -129,6 +128,7 @@ def cli_main(args=None):
     parser.add_argument("--checkpoint", required=True, type=str)
     parser.add_argument("--hcg_l0_penalty_lambda", required=True, type=float)
     parser.add_argument("--strict", default=False, type=bool)
+    parser.add_argument("--name", type=str, required=True)
 
     # todo support other datamodules
 
@@ -160,7 +160,8 @@ def cli_main(args=None):
         transformer_model.setup_encoder_hcg()
     print("transformer_model.hparams", transformer_model.hparams, "hcg_l0_penalty_lambda", transformer_model.hcg_l0_penalty_lambda)
 
-    trainer = pl.Trainer.from_argparse_args(args)
+    trainer_logger = pl.loggers.TensorBoardLogger("lightning_logs", name=args.name)
+    trainer = pl.Trainer.from_argparse_args(args, logger=trainer_logger)
     trainer.fit(transformer_model, datamodule=dm)
     return dm, transformer_model, trainer
 

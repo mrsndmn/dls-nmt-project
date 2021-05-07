@@ -1,6 +1,6 @@
 __pycache__
 .vscode
-.data
+.data*
 .pytest_cache
 lightning_logs/
 .ipynb_checkpoints/

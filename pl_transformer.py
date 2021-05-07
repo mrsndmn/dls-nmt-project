@@ -4,37 +4,52 @@ from nltk.translate.bleu_score import corpus_bleu
 
 import youtokentome as yttm
 import pytorch_lightning as pl
+from pytorch_lightning.callbacks import EarlyStopping
+
 import torch
-from torchnlp.utils import lengths_to_mask
 
 from models import transformer
 from datamodules.wmt import TransformerBatchedSequencesWithMasks
 
 
 class TransformerLightningModule(pl.LightningModule):
+
+    all_hyperparameters_list = [
+        "src_vocab_size", "trg_vocab_size",
+        "hidden_dim", "num_blocks",
+        "key_query_value_dim",
+        "lr", "smoothing",
+        "scheduler", "noam_opt_warmup_steps", "noam_step_factor", 'noam_scaler',
+    ]
+
     def __init__(self,
-        src_vocab_size: int,
-        trg_vocab_size: int,
+        src_vocab_size: int = None,
+        trg_vocab_size: int = None,
         hidden_dim: int=256,
         num_blocks: int=6,
         key_query_value_dim: int=32,
-        padding_token_idx: int = 0,
         smoothing: float = 0.1,
         # lr: float = 1e-4,
-        lr: float = 1, # see also lr scheduler
+        lr: float = 1., # see also lr scheduler
         noam_opt_warmup_steps: int= 4000,
         trg_bpe=None,
+        src_bpe=None,
         scheduler: str="noam",
         scheduler_patience:int=10,
-        noam_step_factor: int = 1,
+        noam_step_factor: float = 1.,
         noam_scaler: float = 1.,
         encoder_with_hard_concrete_gate=False,
+        **kwargs,
     ):
 
         super(TransformerLightningModule, self).__init__()
 
-        self.save_hyperparameters("src_vocab_size", "trg_vocab_size", "hidden_dim", "num_blocks", "key_query_value_dim", "padding_token_idx", "smoothing", "lr", "noam_opt_warmup_steps", "scheduler", "noam_step_factor", 'noam_scaler')
-        print(self.hparams)
+        if src_vocab_size is None:
+            raise ValueError("src_vocab_size is required")
+        if trg_vocab_size is None:
+            raise ValueError("trg_vocab_size is required")
+
+        self.save_hyperparameters(*self.all_hyperparameters_list)
 
         self.transformer = transformer.Transformer(src_vocab_size, trg_vocab_size, hidden_dim,
                                                    num_blocks=num_blocks,
@@ -42,9 +57,10 @@ class TransformerLightningModule(pl.LightningModule):
                                                    encoder_with_hard_concrete_gate=encoder_with_hard_concrete_gate,
                                                    )
 
-        self.criterion = transformer.LabelSmoothing(trg_vocab_size, padding_token_idx=padding_token_idx, smoothing=smoothing)
+        self.criterion = transformer.LabelSmoothing(trg_vocab_size, smoothing=smoothing)
 
         self.trg_bpe: yttm.BPE = trg_bpe
+        self.src_bpe: yttm.BPE = src_bpe
 
         return
 
@@ -95,6 +111,7 @@ class TransformerLightningModule(pl.LightningModule):
         translation = translation.detach().cpu().numpy().tolist()
         translation = self._filter_eos_seq(translation)
         translation_decoded = self.trg_bpe.decode(translation, ignore_ids=ignore_ids)
+        src_decoded = self.src_bpe.decode(batch.src_tensor.detach().cpu().numpy().tolist())
 
         target = batch.trg_tensor.detach().cpu().numpy().tolist()
         target = self._filter_eos_seq(target)
@@ -106,48 +123,51 @@ class TransformerLightningModule(pl.LightningModule):
         # print("translation_decoded", translation_decoded[:10])
         # print("target_decoded", target_decoded[:10])
 
-        return translation_decoded, target_decoded
+        return translation_decoded, target_decoded, src_decoded
 
     def validation_epoch_end(self, validation_step_outputs):
         generated = []
         references = []
+        sources = []
 
         for vout in validation_step_outputs:
             for gen_seq in vout[0]:
                 generated.append(gen_seq)
             for trg_seq in vout[1]:
                 references.append([trg_seq])
+            for src_seq in vout[2]:
+                sources.append([src_seq])
 
         translation_str = "\n\n\n".join(generated[:5])
         target_str = "\n\n\n".join(x[0] for x in references[:5])
+        sources_str = "\n\n\n".join(x[0] for x in sources[:5])
         self.logger.experiment.add_text("translate_decoded", translation_str)
         self.logger.experiment.add_text("translate_target", target_str)
+        self.logger.experiment.add_text("translate_source", sources_str)
 
         calculated_bleu = corpus_bleu(references, generated)
         # print("calculated_bleu", calculated_bleu * 100)
         self.log("valid_bleu", calculated_bleu * 100, prog_bar=True)
+
         return
 
     @staticmethod
     def add_model_specific_args(parent_parser):
         parser = ArgumentParser(parents=[parent_parser], add_help=False)
 
-        parser.add_argument("--src_vocab_size", type=int, default=1000)
-        parser.add_argument("--trg_vocab_size", type=int, default=1000)
+        parser.add_argument("--src_vocab_size", type=int)
+        parser.add_argument("--trg_vocab_size", type=int)
         parser.add_argument("--hidden_dim", type=int)
         parser.add_argument("--num_blocks", type=int)
         parser.add_argument("--key_query_value_dim", type=int)
-        parser.add_argument("--noam_opt_warmup_steps", type=int, default=4000)
+        parser.add_argument("--noam_opt_warmup_steps", type=int)
 
         parser.add_argument("--lr", type=float)
         parser.add_argument("--scheduler", default="noam")
-        parser.add_argument("--scheduler_patience", default=10)
-        parser.add_argument("--noam_step_factor", default=1, type=int)
-        parser.add_argument("--noam_scaler", default=1, type=float)
-        parser.add_argument("--encoder_with_hard_concrete_gate", default=False, type=bool)
-
-        # parser.add_argument("--num_workers", type=int, default=8)
-        # parser.add_argument("--data_dir", type=str, default=".")
+        parser.add_argument("--scheduler_patience")
+        parser.add_argument("--noam_step_factor", type=float)
+        parser.add_argument("--noam_scaler", type=float)
+        parser.add_argument("--encoder_with_hard_concrete_gate", action='store_true')
 
         return parser
 
@@ -184,8 +204,13 @@ def cli_main(args=None):
 
     parser = ArgumentParser()
     parser.add_argument("--checkpoint", required=False, type=str)
-    parser.add_argument("--strict", default=False, type=bool)
+    parser.add_argument("--strict", default=False, action='store_true')
+    parser.add_argument("--name", type=str, required=True)
 
+    parser.add_argument("--early_stopping_monitor", type=str, default='valid_bleu')
+    parser.add_argument("--early_stopping_mode", type=str, default='max')
+    parser.add_argument("--early_stopping_min_delta", type=float, default=1.)
+    parser.add_argument("--early_stopping_patience", type=int, default=2)
 
     # todo support other datamodules
 
@@ -204,8 +229,8 @@ def cli_main(args=None):
     args.src_vocab_size = dm.src_bpe.vocab_size()
     args.trg_vocab_size = dm.trg_bpe.vocab_size()
 
-    if len(args.checkpoint) > 0:
-        print("Restooring from cehckporint", args.checkpoint)
+    if args.checkpoint is not None:
+        print("Restoring from checkpoint", args.checkpoint)
         transformer_model = TransformerLightningModule.load_from_checkpoint(args.checkpoint, strict=args.strict)
         transformer_model.hparams.noam_scaler = args.noam_scaler
         transformer_model.hparams.lr= args.lr
@@ -215,20 +240,22 @@ def cli_main(args=None):
         transformer_model.hparams.noam_step_factor = args.noam_step_factor
 
     else:
-        transformer_model = TransformerLightningModule(args.src_vocab_size, args.trg_vocab_size,
-                                                   hidden_dim=args.hidden_dim,
-                                                   num_blocks=args.num_blocks,
-                                                   key_query_value_dim=args.key_query_value_dim,
-                                                   noam_opt_warmup_steps=args.noam_opt_warmup_steps,
-                                                   noam_scaler=args.noam_scaler,
-                                                   lr=args.lr,
-                                                   scheduler=args.scheduler,
-                                                   scheduler_patience=args.scheduler_patience,
-                                                   noam_step_factor=args.noam_step_factor)
+        args_dict = vars(args)
+        lightning_module_args = { k: args_dict[k] for k in args_dict.keys() if args_dict[k] is not None }
+        transformer_model = TransformerLightningModule(**lightning_module_args)
 
     transformer_model.trg_bpe = dm.trg_bpe
+    transformer_model.src_bpe = dm.src_bpe
 
-    trainer = pl.Trainer.from_argparse_args(args)
+    trainer_logger = pl.loggers.TensorBoardLogger("lightning_logs", name=args.name)
+    early_stop_callback = EarlyStopping(
+        monitor=args.early_stopping_monitor,
+        mode=args.early_stopping_mode,
+        min_delta=args.early_stopping_min_delta,
+        patience=args.early_stopping_patience,
+        verbose=True,
+    )
+    trainer = pl.Trainer.from_argparse_args(args, logger=trainer_logger, callbacks=[early_stop_callback])
     trainer.fit(transformer_model, datamodule=dm)
     return dm, transformer_model, trainer
 

@@ -1,0 +1,141 @@
+stages:
+  download_data:
+    cmd: 'dvc get-url http://data.statmt.org/news-commentary/v14/training/news-commentary-v14.en-ru.tsv.gz
+      .data/news-commentary-v14.en-ru.tsv.gz '
+    outs:
+    - .data/news-commentary-v14.en-ru.tsv.gz
+  extract_data:
+    cmd: gunzip -c .data/news-commentary-v14.en-ru.tsv.gz > .data/news-commentary-v14.en-ru.tsv
+    deps:
+    - .data/news-commentary-v14.en-ru.tsv.gz
+    outs:
+    - .data/news-commentary-v14.en-ru.tsv
+  src_trg_split_dataset:
+    cmd: python datamodules/split_data.py --file .data/news-commentary-v14.en-ru.tsv
+      --src-out-file .data/SRC_news-commentary-v14.en-ru.tsv --trg-out-file .data/TRG_news-commentary-v14.en-ru.tsv
+    deps:
+    - .data/news-commentary-v14.en-ru.tsv
+    outs:
+    - .data/SRC_news-commentary-v14.en-ru.tsv
+    - .data/TRG_news-commentary-v14.en-ru.tsv
+  build_bpe_src:
+    cmd: yttm bpe --data .data/SRC_news-commentary-v14.en-ru.tsv --model .data/SRC_news-commentary-v14.en-ru.yttm
+      --vocab_size 10000
+    deps:
+    - .data/SRC_news-commentary-v14.en-ru.tsv
+    outs:
+    - .data/SRC_news-commentary-v14.en-ru.yttm
+  build_bpe_trg:
+    cmd: yttm bpe --data .data/TRG_news-commentary-v14.en-ru.tsv --model .data/TRG_news-commentary-v14.en-ru.yttm
+      --vocab_size 10000
+    deps:
+    - .data/TRG_news-commentary-v14.en-ru.tsv
+    outs:
+    - .data/TRG_news-commentary-v14.en-ru.yttm
+  bpe_encode_src:
+    cmd: yttm encode --output_type id --model .data/SRC_news-commentary-v14.en-ru.yttm --bos --eos
+      --stream < .data/SRC_news-commentary-v14.en-ru.tsv > .data/SRC_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+    deps:
+    - .data/SRC_news-commentary-v14.en-ru.tsv
+    - .data/SRC_news-commentary-v14.en-ru.yttm
+    outs:
+    - .data/SRC_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+  bpe_encode_trg:
+    cmd: yttm encode --output_type id --model .data/TRG_news-commentary-v14.en-ru.yttm --bos --eos
+      --stream < .data/TRG_news-commentary-v14.en-ru.tsv > .data/TRG_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+    deps:
+    - .data/TRG_news-commentary-v14.en-ru.tsv
+    - .data/TRG_news-commentary-v14.en-ru.yttm
+    outs:
+    - .data/TRG_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+  train_4b_512h_transormer:
+    cmd: python pl_transformer.py
+      --name 4b_512h_transormer
+      --max_epochs 10 --batch_size 100 --val_batch_size 50
+      --gpus 1 --progress_bar_refresh_rate 20
+      --src_vocab_size=10000 --trg_vocab_size=10000
+      --num_blocks 4 --hidden_dim 512 --key_query_value_dim 64
+      --src_bpe_tokenized_file .data/SRC_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+      --trg_bpe_tokenized_file .data/TRG_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+      --src_bpe_model_file .data/SRC_news-commentary-v14.en-ru.yttm
+      --trg_bpe_model_file .data/TRG_news-commentary-v14.en-ru.yttm
+    deps:
+    - .data/TRG_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+    - .data/SRC_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+    - .data/TRG_news-commentary-v14.en-ru.yttm
+    - .data/SRC_news-commentary-v14.en-ru.yttm
+    - datamodules/
+    - models/
+    - pl_transformer.py
+    outs:
+    - lightning_logs/4b_512h_transormer/
+  4b_512h_transormer_pruned_lambda_0.1:
+    cmd: python pl_pruned_enconder_transformer.py
+      --name 4b_512h_transormer_pruned_lambda_0.1
+      --max_epochs 10 --batch_size 10 --val_batch_size 10
+      --gpus 1 --progress_bar_refresh_rate 20 --num_sanity_val_steps 0
+      --src_vocab_size=10000 --trg_vocab_size=10000
+      --checkpoint lightning_logs/4b_512h_transormer/version_0/checkpoints/epoch=53-step=536.ckpt
+      --scheduler=no --lr=0.0004
+      --hcg_l0_penalty_lambda=0.1
+      --src_bpe_tokenized_file .data/SRC_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+      --trg_bpe_tokenized_file .data/TRG_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+      --src_bpe_model_file .data/SRC_news-commentary-v14.en-ru.yttm
+      --trg_bpe_model_file .data/TRG_news-commentary-v14.en-ru.yttm
+    deps:
+    - lightning_logs/4b_512h_transormer/version_0/checkpoints/
+    - .data/TRG_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+    - .data/SRC_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+    - .data/TRG_news-commentary-v14.en-ru.yttm
+    - .data/SRC_news-commentary-v14.en-ru.yttm
+    - datamodules/
+    - models/
+    - pl_pruned_enconder_transformer.py
+    outs:
+    - lightning_logs/4b_512h_transormer_pruned_lambda_0.1/
+  4b_512h_transormer_pruned_lambda_0.01:
+    cmd: python pl_pruned_enconder_transformer.py
+      --name 4b_512h_transormer_pruned_lambda_0.01
+      --max_epochs 10 --batch_size 10 --val_batch_size 10
+      --limit_train_batches 10 --limit_val_batches 10
+      --gpus 1 --progress_bar_refresh_rate 20 --num_sanity_val_steps 0
+      --src_vocab_size=10000 --trg_vocab_size=10000
+      --checkpoint lightning_logs/4b_512h_transormer/version_0/checkpoints/epoch=53-step=536.ckpt
+      --scheduler=no --lr=0.0004
+      --hcg_l0_penalty_lambda=0.01
+      --src_bpe_tokenized_file .data/SRC_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+      --trg_bpe_tokenized_file .data/TRG_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+      --src_bpe_model_file .data/SRC_news-commentary-v14.en-ru.yttm
+      --trg_bpe_model_file .data/TRG_news-commentary-v14.en-ru.yttm
+    deps:
+    - lightning_logs/4b_512h_transormer/version_0/checkpoints/
+    - .data/TRG_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+    - .data/SRC_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+    - .data/TRG_news-commentary-v14.en-ru.yttm
+    - .data/SRC_news-commentary-v14.en-ru.yttm
+    - datamodules/
+    - models/
+    - pl_pruned_enconder_transformer.py
+    outs:
+    - lightning_logs/4b_512h_transormer_pruned_lambda_0.01/
+  train_8b_512h_transormer:
+    cmd: python pl_transformer.py
+      --name 8b_512h_transormer
+      --max_epochs 15 --batch_size 50 --val_batch_size 50
+      --gpus 1 --progress_bar_refresh_rate 20
+      --src_vocab_size=10000 --trg_vocab_size=10000
+      --num_blocks 8 --hidden_dim 512 --key_query_value_dim 64
+      --src_bpe_tokenized_file .data/SRC_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+      --trg_bpe_tokenized_file .data/TRG_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+      --src_bpe_model_file .data/SRC_news-commentary-v14.en-ru.yttm
+      --trg_bpe_model_file .data/TRG_news-commentary-v14.en-ru.yttm
+    deps:
+    - .data/TRG_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+    - .data/SRC_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+    - .data/TRG_news-commentary-v14.en-ru.yttm
+    - .data/SRC_news-commentary-v14.en-ru.yttm
+    - datamodules/
+    - models/
+    - pl_transformer.py
+    outs:
+    - lightning_logs/8b_512h_transormer/

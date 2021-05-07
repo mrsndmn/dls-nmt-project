@@ -1,0 +1,240 @@
+download_data:
+  cmd: 'dvc get-url http://data.statmt.org/news-commentary/v14/training/news-commentary-v14.en-ru.tsv.gz
+    .data/news-commentary-v14.en-ru.tsv.gz '
+  outs:
+  - path: .data/news-commentary-v14.en-ru.tsv.gz
+    md5: c25523c3f16878530ce4dd154593fb92
+    size: 41411245
+extract_data:
+  cmd: gunzip -c .data/news-commentary-v14.en-ru.tsv.gz > .data/news-commentary-v14.en-ru.tsv
+  deps:
+  - path: .data/news-commentary-v14.en-ru.tsv.gz
+    md5: c25523c3f16878530ce4dd154593fb92
+    size: 41411245
+  outs:
+  - path: .data/news-commentary-v14.en-ru.tsv
+    md5: d251228dc9cd66d49ccd5377d322ad53
+    size: 125093461
+src_trg_split_dataset:
+  cmd: python datamodules/split_data.py --file .data/news-commentary-v14.en-ru.tsv
+    --src-out-file .data/SRC_news-commentary-v14.en-ru.tsv --trg-out-file .data/TRG_news-commentary-v14.en-ru.tsv
+  deps:
+  - path: .data/news-commentary-v14.en-ru.tsv
+    md5: d251228dc9cd66d49ccd5377d322ad53
+    size: 125093461
+  outs:
+  - path: .data/SRC_news-commentary-v14.en-ru.tsv
+    md5: 3aa4e8c7a3db0868a98a90605272a50b
+    size: 41132782
+  - path: .data/TRG_news-commentary-v14.en-ru.tsv
+    md5: 93b50aa44cbfc1b006cf1f2683793d52
+    size: 82769625
+build_bpe_src:
+  cmd: yttm bpe --data .data/SRC_news-commentary-v14.en-ru.tsv --model .data/SRC_news-commentary-v14.en-ru.yttm
+    --vocab_size 10000
+  deps:
+  - path: .data/SRC_news-commentary-v14.en-ru.tsv
+    md5: 3aa4e8c7a3db0868a98a90605272a50b
+    size: 41132782
+  outs:
+  - path: .data/SRC_news-commentary-v14.en-ru.yttm
+    md5: 7b8731e574dbdc0d723800c5555dc1f9
+    size: 130091
+build_bpe_trg:
+  cmd: yttm bpe --data .data/TRG_news-commentary-v14.en-ru.tsv --model .data/TRG_news-commentary-v14.en-ru.yttm
+    --vocab_size 10000
+  deps:
+  - path: .data/TRG_news-commentary-v14.en-ru.tsv
+    md5: 93b50aa44cbfc1b006cf1f2683793d52
+    size: 82769625
+  outs:
+  - path: .data/TRG_news-commentary-v14.en-ru.yttm
+    md5: ad00fe59b44052fecbcad30748957dc1
+    size: 129558
+bpe_encode_src:
+  cmd: yttm encode --output_type id --model .data/SRC_news-commentary-v14.en-ru.yttm
+    --bos --eos --stream < .data/SRC_news-commentary-v14.en-ru.tsv > .data/SRC_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+  deps:
+  - path: .data/SRC_news-commentary-v14.en-ru.tsv
+    md5: 3aa4e8c7a3db0868a98a90605272a50b
+    size: 41132782
+  - path: .data/SRC_news-commentary-v14.en-ru.yttm
+    md5: 7b8731e574dbdc0d723800c5555dc1f9
+    size: 130091
+  outs:
+  - path: .data/SRC_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+    md5: 060e0f27b78a707f2415f85701271ff1
+    size: 36475411
+bpe_encode_trg:
+  cmd: yttm encode --output_type id --model .data/TRG_news-commentary-v14.en-ru.yttm
+    --bos --eos --stream < .data/TRG_news-commentary-v14.en-ru.tsv > .data/TRG_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+  deps:
+  - path: .data/TRG_news-commentary-v14.en-ru.tsv
+    md5: 93b50aa44cbfc1b006cf1f2683793d52
+    size: 82769625
+  - path: .data/TRG_news-commentary-v14.en-ru.yttm
+    md5: ad00fe59b44052fecbcad30748957dc1
+    size: 129558
+  outs:
+  - path: .data/TRG_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+    md5: dddc1e06de0b3a3b9f9e5547e6ac5181
+    size: 42179285
+train_4b_512h_transormer:
+  cmd: python pl_transformer.py --name 4b_512h_transormer --max_epochs 50 --batch_size
+    25 --val_batch_size 10 --limit_train_batches 10 --limit_val_batches 10 --gpus
+    1 --progress_bar_refresh_rate 20 --src_vocab_size=10000 --trg_vocab_size=10000
+    --num_blocks 4 --hidden_dim 512 --key_query_value_dim 64 --src_bpe_tokenized_file
+    .data/SRC_BPE_ENCODED_news-commentary-v14.en-ru.tsv --trg_bpe_tokenized_file .data/TRG_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+    --src_bpe_model_file .data/SRC_news-commentary-v14.en-ru.yttm --trg_bpe_model_file
+    .data/TRG_news-commentary-v14.en-ru.yttm
+  deps:
+  - path: .data/SRC_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+    md5: 9b11fc90cbf33dfd61eff3b55f14e8bc
+    size: 35351399
+  - path: .data/SRC_news-commentary-v14.en-ru.yttm
+    md5: 7b8731e574dbdc0d723800c5555dc1f9
+    size: 130091
+  - path: .data/TRG_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+    md5: 11b2b158d13eb01247c6e9e2860edc21
+    size: 41055273
+  - path: .data/TRG_news-commentary-v14.en-ru.yttm
+    md5: ad00fe59b44052fecbcad30748957dc1
+    size: 129558
+  - path: datamodules/
+    md5: fefda054fde5b2b1c2715b8043a37604.dir
+    size: 19195
+    nfiles: 5
+  - path: models/
+    md5: 25d9cf803375dc66c70eba682a6acbc1.dir
+    size: 47306
+    nfiles: 14
+  - path: pl_transformer.py
+    md5: 7785a90475a0d947d25f574e208a84a4
+    size: 9969
+  outs:
+  - path: lightning_logs/4b_512h_transormer/
+    md5: 96dcea38dad171a06283bd6acdeb9f5f.dir
+    size: 558903588
+    nfiles: 3
+4b_512h_transormer_pruned_lambda_0.01:
+  cmd: python pl_pruned_enconder_transformer.py --name 4b_512h_transormer_pruned_lambda_0.01
+    --max_epochs 10 --batch_size 10 --val_batch_size 10 --check_val_every_n_epoch
+    10 --limit_train_batches 10 --limit_val_batches 10 --check_val_every_n_epoch 1
+    --gpus 1 --progress_bar_refresh_rate 20 --src_vocab_size=10000 --trg_vocab_size=10000
+    --checkpoint lightning_logs/4b_512h_transormer/version_0/checkpoints/epoch=53-step=536.ckpt
+    --scheduler=no --lr=0.0004 --hcg_l0_penalty_lambda=0.01 --src_bpe_tokenized_file
+    .data/SRC_BPE_ENCODED_news-commentary-v14.en-ru.tsv --trg_bpe_tokenized_file .data/TRG_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+    --src_bpe_model_file .data/SRC_news-commentary-v14.en-ru.yttm --trg_bpe_model_file
+    .data/TRG_news-commentary-v14.en-ru.yttm
+  deps:
+  - path: .data/SRC_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+    md5: 9b11fc90cbf33dfd61eff3b55f14e8bc
+    size: 35351399
+  - path: .data/SRC_news-commentary-v14.en-ru.yttm
+    md5: 7b8731e574dbdc0d723800c5555dc1f9
+    size: 130091
+  - path: .data/TRG_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+    md5: 11b2b158d13eb01247c6e9e2860edc21
+    size: 41055273
+  - path: .data/TRG_news-commentary-v14.en-ru.yttm
+    md5: ad00fe59b44052fecbcad30748957dc1
+    size: 129558
+  - path: datamodules/
+    md5: fefda054fde5b2b1c2715b8043a37604.dir
+    size: 19195
+    nfiles: 5
+  - path: lightning_logs/4b_512h_transormer/version_0/checkpoints/
+    md5: 51566a821b032b9b4e4f849f071b5d30.dir
+    size: 558887963
+    nfiles: 1
+  - path: models/
+    md5: 25d9cf803375dc66c70eba682a6acbc1.dir
+    size: 47306
+    nfiles: 14
+  - path: pl_pruned_enconder_transformer.py
+    md5: 4dfb207238c9b060cf38a11f3dfacf99
+    size: 6603
+  outs:
+  - path: lightning_logs/4b_512h_transormer_pruned_lambda_0.01/
+    md5: 436bdc6a57a5e98ace6740c857101d0b.dir
+    size: 424144498
+    nfiles: 3
+4b_512h_transormer_pruned_lambda_0.1:
+  cmd: python pl_pruned_enconder_transformer.py --name 4b_512h_transormer_pruned_lambda_0.1
+    --max_epochs 10 --batch_size 10 --val_batch_size 10 --check_val_every_n_epoch
+    10 --limit_train_batches 10 --limit_val_batches 10 --check_val_every_n_epoch 1
+    --gpus 1 --progress_bar_refresh_rate 20 --src_vocab_size=10000 --trg_vocab_size=10000
+    --checkpoint lightning_logs/4b_512h_transormer/version_0/checkpoints/epoch=53-step=536.ckpt
+    --scheduler=no --lr=0.0004 --hcg_l0_penalty_lambda=0.1 --src_bpe_tokenized_file
+    .data/SRC_BPE_ENCODED_news-commentary-v14.en-ru.tsv --trg_bpe_tokenized_file .data/TRG_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+    --src_bpe_model_file .data/SRC_news-commentary-v14.en-ru.yttm --trg_bpe_model_file
+    .data/TRG_news-commentary-v14.en-ru.yttm
+  deps:
+  - path: .data/SRC_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+    md5: 9b11fc90cbf33dfd61eff3b55f14e8bc
+    size: 35351399
+  - path: .data/SRC_news-commentary-v14.en-ru.yttm
+    md5: 7b8731e574dbdc0d723800c5555dc1f9
+    size: 130091
+  - path: .data/TRG_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+    md5: 11b2b158d13eb01247c6e9e2860edc21
+    size: 41055273
+  - path: .data/TRG_news-commentary-v14.en-ru.yttm
+    md5: ad00fe59b44052fecbcad30748957dc1
+    size: 129558
+  - path: datamodules/
+    md5: fefda054fde5b2b1c2715b8043a37604.dir
+    size: 19195
+    nfiles: 5
+  - path: lightning_logs/4b_512h_transormer/version_0/checkpoints/
+    md5: 51566a821b032b9b4e4f849f071b5d30.dir
+    size: 558887963
+    nfiles: 1
+  - path: models/
+    md5: 25d9cf803375dc66c70eba682a6acbc1.dir
+    size: 47306
+    nfiles: 14
+  - path: pl_pruned_enconder_transformer.py
+    md5: 4dfb207238c9b060cf38a11f3dfacf99
+    size: 6603
+  outs:
+  - path: lightning_logs/4b_512h_transormer_pruned_lambda_0.1/
+    md5: 89e304ab9ceac38035c37194d7103595.dir
+    size: 424145964
+    nfiles: 3
+train_8b_512h_transormer:
+  cmd: python pl_transformer.py --name 8b_512h_transormer --max_epochs 15 --batch_size
+    50 --val_batch_size 50 --gpus 1 --progress_bar_refresh_rate 20 --src_vocab_size=10000
+    --trg_vocab_size=10000 --num_blocks 8 --hidden_dim 512 --key_query_value_dim 64
+    --src_bpe_tokenized_file .data/SRC_BPE_ENCODED_news-commentary-v14.en-ru.tsv --trg_bpe_tokenized_file
+    .data/TRG_BPE_ENCODED_news-commentary-v14.en-ru.tsv --src_bpe_model_file .data/SRC_news-commentary-v14.en-ru.yttm
+    --trg_bpe_model_file .data/TRG_news-commentary-v14.en-ru.yttm
+  deps:
+  - path: .data/SRC_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+    md5: 060e0f27b78a707f2415f85701271ff1
+    size: 36475411
+  - path: .data/SRC_news-commentary-v14.en-ru.yttm
+    md5: 7b8731e574dbdc0d723800c5555dc1f9
+    size: 130091
+  - path: .data/TRG_BPE_ENCODED_news-commentary-v14.en-ru.tsv
+    md5: dddc1e06de0b3a3b9f9e5547e6ac5181
+    size: 42179285
+  - path: .data/TRG_news-commentary-v14.en-ru.yttm
+    md5: ad00fe59b44052fecbcad30748957dc1
+    size: 129558
+  - path: datamodules/
+    md5: b629208e1910879fe6c04b3643decebb.dir
+    size: 18615
+    nfiles: 5
+  - path: models/
+    md5: c920b0c4483cbbb9692d6058123481fb.dir
+    size: 47347
+    nfiles: 14
+  - path: pl_transformer.py
+    md5: 281791d835a9f45116207690dd4f92d6
+    size: 10819
+  outs:
+  - path: lightning_logs/8b_512h_transormer/
+    md5: e246e07f511550b9009b833baecd16a9.dir
+    size: 912892479
+    nfiles: 3
